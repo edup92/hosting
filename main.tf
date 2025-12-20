@@ -15,7 +15,7 @@ resource "aws_secretsmanager_secret" "secret_pem_ssh" {
 }
 
 resource "aws_secretsmanager_secret_version" "secretversion_pem_ssh" {
-  secret_id     = aws_secretsmanager_secret.pem_ssh.id
+  secret_id     = aws_secretsmanager_secret.secret_pem_ssh.id
   secret_string = jsonencode({
     private_key = tls_private_key.pem_ssh.private_key_pem
     public_key  = tls_private_key.pem_ssh.public_key_openssh
@@ -245,16 +245,14 @@ resource "null_resource" "null_ansible_install" {
   triggers = {
     instance_id   = aws_instance.instance_main.id
     playbook_hash = filesha256(local.ansible_path)
-    vars_json = local.ansible_vars
   }
   provisioner "local-exec" {
     environment = {
-      INSTANCE_IP    = google_compute_instance.instance_main.network_interface[0].access_config[0].nat_ip
+      INSTANCE_IP    = aws_eip.eip_main.public_ip
       INSTANCE_USER  = local.ansible_user
       INSTANCE_SSH_KEY = nonsensitive(tls_private_key.pem_ssh.private_key_pem)
       SG_MAIN_ID     = aws_security_group.sg_main.id
       SG_TEMPSSH_ID  = aws_security_group.sg_tempssh.id
-      VARS_JSON = nonsensitive(local.ansible_vars)
       PLAYBOOK_PATH = local.ansible_path
     }
     command = local.ansible_null_resource
