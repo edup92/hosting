@@ -55,7 +55,7 @@ jobs:
           aws-region: ${{ fromJson(secrets.VARS_JSON).aws_region }}
       - name: Creates / Checks state bucket
         env:
-          BUCKET_NAME: ${{ fromJson(secrets.VARS_JSON).project_name }}-bucket-state
+          BUCKET_NAME: ${{ fromJson(secrets.VARS_JSON).project_name }}-bucket-tfstate
           AWS_REGION: ${{ fromJson(secrets.VARS_JSON).aws_region }}
         run: |
           if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
