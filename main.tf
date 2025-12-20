@@ -10,18 +10,11 @@ resource "aws_key_pair" "keypair_main" {
   public_key = tls_private_key.pem_ssh.public_key_openssh
 }
 
-
-resource "local_file" "file_pem_ssh" {
-  filename        = "/tmp/pem_ssh"
-  content         = tls_private_key.pem_ssh.private_key_pem
-  file_permission = "0600"
-}
-
-resource "aws_secretsmanager_secret" "pem_ssh" {
+resource "aws_secretsmanager_secret" "secret_pem_ssh" {
   name = local.secret_pem_ssh
 }
 
-resource "aws_secretsmanager_secret_version" "pem_ssh_version" {
+resource "aws_secretsmanager_secret_version" "secretversion_pem_ssh" {
   secret_id     = aws_secretsmanager_secret.pem_ssh.id
   secret_string = jsonencode({
     private_key = tls_private_key.pem_ssh.private_key_pem
@@ -244,7 +237,6 @@ resource "aws_dlm_lifecycle_policy" "dlm_main" {
 
 resource "null_resource" "null_ansible_install" {
   depends_on = [
-    local_file.file_pem_ssh,
     aws_instance.instance_main,
     aws_eip.eip_main,
     aws_security_group.sg_tempssh,
@@ -252,20 +244,20 @@ resource "null_resource" "null_ansible_install" {
   ]
   triggers = {
     instance_id   = aws_instance.instance_main.id
-    playbook_hash = filesha256("${path.module}/src/ansible/install.yml")
+    playbook_hash = filesha256(local.ansible_path)
+    vars_json = local.ansible_vars
   }
   provisioner "local-exec" {
     environment = {
-      INSTANCE_IP    = aws_eip.eip_main.public_ip
-      INSTANCE_USER  = "ubuntu"
-      INSTANCE_SSH_KEY = local_file.file_pem_ssh.filename
-      INSTANCE_ID    = aws_instance.instance_main.id
+      INSTANCE_IP    = google_compute_instance.instance_main.network_interface[0].access_config[0].nat_ip
+      INSTANCE_USER  = local.ansible_user
+      INSTANCE_SSH_KEY = nonsensitive(tls_private_key.pem_ssh.private_key_pem)
       SG_MAIN_ID     = aws_security_group.sg_main.id
       SG_TEMPSSH_ID  = aws_security_group.sg_tempssh.id
-      VARS_FILE      = "${path.module}/vars.json"
-      PLAYBOOK_PATH = "${path.module}/src/ansible/install.yml"
+      VARS_JSON = nonsensitive(local.ansible_vars)
+      PLAYBOOK_PATH = local.ansible_path
     }
-    command = "chmod +x ${path.module}/src/null_resource/ansible.sh && ${path.module}/src/null_resource/ansible.sh"
+    command = local.ansible_null_resource
   }
 }
 
