@@ -6,6 +6,8 @@ locals {
   disk_name       = "${var.project_name}-disk-main"
   snapshot_name = "${var.project_name}-snapshot-main"
   instanceprofile_name = "${var.project_name}-instanceprofile-main"
+  instance_disk_type" = "gp3"
+  instance_ami" = "ami-0afadb98a5a7f1807"
 
   # Secrets
 
@@ -32,6 +34,7 @@ locals {
   # lambda
 
   lambda_cfupdater_name       = "${var.project_name}-lambda-cfupdater"
+  lambda_runtime" = "python3.12"
 
   # scheduler
 

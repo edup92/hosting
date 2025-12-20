@@ -164,13 +164,13 @@ resource "aws_iam_instance_profile" "instanceprofile_main" {
 }
 
 resource "aws_instance" "instance_main" {
-  ami                    = var.instance_ami
+  ami                    = local.instance_ami
   instance_type          = var.instance_type
   vpc_security_group_ids = [aws_security_group.sg_main.id]
   iam_instance_profile = aws_iam_instance_profile.instanceprofile_main.name
   key_name               = aws_key_pair.keypair_main.key_name
   root_block_device {
-    volume_type           = var.instance_disk_type
+    volume_type           = local.instance_disk_type
     volume_size           = var.instance_disk_size
     delete_on_termination = true
     tags = {
@@ -328,7 +328,7 @@ resource "aws_lambda_function" "lambda_cfupdater" {
   function_name = local.lambda_cfupdater_name
   role          = aws_iam_role.role_cfupdater.arn
   handler       = "main.lambda_handler"
-  runtime       = var.lambda_runtime
+  runtime       = local.lambda_runtime
   filename         = data.archive_file.archive_lambda_cfupdater.output_path
   source_code_hash = data.archive_file.archive_lambda_cfupdater.output_base64sha256
   environment {
