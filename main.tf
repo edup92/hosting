@@ -311,7 +311,7 @@ resource "aws_iam_role_policy" "policy_lambda_cfupdater" {
 data "archive_file" "archive_lambda_cfupdater" {
   type        = "zip"
   source_file = "${path.module}/src/lambda/cfupdater/main.py"
-  output_path = "/tmp/cfupdater.zip"
+  output_path = "${path.module}/.terraform-build/cfupdater.zip"
 }
 
 resource "aws_lambda_function" "lambda_cfupdater" {
