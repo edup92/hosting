@@ -43,11 +43,4 @@ locals {
   ansible_null_resource = "./src/null_resources/ansible.sh"
   ansible_path          = "./src/ansible/install.yml"
   ansible_user          = "ubuntu"
-  ansible_vars          = jsonencode({
-    dns_record        = var.dns_record
-    admin_name        = var.admin_name
-    admin_email       = var.admin_email
-    extensions        = var.extensions
-    pem_github_base64 = var.pem_github_base64
-  })
 }

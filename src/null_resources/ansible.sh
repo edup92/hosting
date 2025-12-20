@@ -70,11 +70,20 @@ echo "Playbook NOT installed. Continuing..."
 # ----------------------------------------
 echo "Validating JSON..."
 
-if echo "$VARS_JSON" | jq -e . >/dev/null 2>&1; then
-  echo "JSON valid."
+if [ -z "${VARS_JSON:-}" ]; then
+  echo "VARS_JSON not provided. Skipping JSON validation."
 else
-  echo "ERROR: Invalid JSON"
-  exit 1
+  if echo "$VARS_JSON" | jq -e . >/dev/null 2>&1; then
+    echo "JSON valid."
+  else
+    echo "ERROR: Invalid JSON"
+    exit 1
+  fi
+fi
+
+ANSIBLE_EXTRA_VARS_ARGS=()
+if [ -n "${VARS_JSON:-}" ]; then
+  ANSIBLE_EXTRA_VARS_ARGS=(--extra-vars "$VARS_JSON")
 fi
 
 # ----------------------------------------
@@ -83,7 +92,7 @@ fi
 ansible-playbook \
   -i "${INSTANCE_IP}," -e ansible_python_interpreter=/usr/bin/python3 \
   --user "$INSTANCE_USER" \
-  --extra-vars "$VARS_JSON" \
+  "${ANSIBLE_EXTRA_VARS_ARGS[@]}" \
   --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
   "$PLAYBOOK_PATH"
 
