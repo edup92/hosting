@@ -1,0 +1,72 @@
+---
+- name: cloudpanel
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+
+    - name: Ensure APT is updated and basic packages installed
+      block:
+        - name: Update APT cache
+          apt:
+            update_cache: true
+            cache_valid_time: 3600
+        - name: Basic Packages
+          apt:
+            name:
+              - software-properties-common
+              - gnupg
+              - curl
+              - ca-certificates
+              - nano
+              - unzip
+              - wget
+            state: present
+            update_cache: true
+
+    - name: Install Cloudpanel
+      block:
+        - name: Check OS compatibility
+          fail:
+            msg: "CloudPanel solo soporta Ubuntu 24.04."
+          when: ansible_distribution != "Ubuntu" or ansible_distribution_version is version('24.04', '!=')
+        - name: Check if clpctl exists
+          ansible.builtin.shell: command -v clpctl
+          register: clpctl_check
+          ignore_errors: true
+          changed_when: false
+          failed_when: false
+        - name: Download CloudPanel installer
+          ansible.builtin.get_url:
+            url: https://installer.cloudpanel.io/ce/v2/install.sh
+            dest: /tmp/install.sh
+            mode: '0755'
+            force: yes
+          when: clpctl_check.rc != 0
+        - name: Verify SHA256 checksum
+          ansible.builtin.shell: >
+            echo "19cfa702e7936a79e47812ff57d9859175ea902c62a68b2c15ccd1ebaf36caeb  /tmp/install.sh"
+            | sha256sum -c -
+          register: checksum
+          changed_when: false
+          failed_when: checksum.rc != 0
+          when: clpctl_check.rc != 0
+        - name: Run CloudPanel installer
+          ansible.builtin.shell: |
+            DB_ENGINE=MARIADB_11.4 bash /tmp/install.sh
+          when: clpctl_check.rc != 0
+          async: 1800
+          poll: 0
+          register: clp_job
+        - name: Wait for CloudPanel installation to finish
+          async_status:
+            jid: "{{ clp_job.ansible_job_id }}"
+          register: clp_result
+          until: clp_result.finished
+          retries: 120
+          delay: 10
+          when: clpctl_check.rc != 0
+        - name: Check if clpctl exists
+          ansible.builtin.shell: command -v clpctl
+          
