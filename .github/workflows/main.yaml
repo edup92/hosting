@@ -34,7 +34,7 @@ jobs:
             (.admin_ip              | type=="string") and
             (.project_name          | type=="string") and
             (.instance_type         | type=="string") and
-            (.instance_disk_size    | type=="number") and
+            (.instance_disk_size    | type=="string") and
             (.sites | type=="object") and
             (
               (.sites | length) == 0 or
