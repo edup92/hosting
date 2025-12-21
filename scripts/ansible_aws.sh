@@ -96,13 +96,13 @@ aws ec2 authorize-security-group-ingress \
   --group-id "$SG_TEMP_ID" \
   --ip-permissions '[
     {"IpProtocol":"tcp","FromPort":22,"ToPort":22,"IpRanges":[{"CidrIp":"0.0.0.0/0"}],"Ipv6Ranges":[{"CidrIpv6":"::/0"}]}
-  ]'
+  ]' >/dev/null 2>&1
 
 aws ec2 authorize-security-group-egress \
   --group-id "$SG_TEMP_ID" \
   --ip-permissions '[
     {"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0"}],"Ipv6Ranges":[{"CidrIpv6":"::/0"}]}
-  ]' 2>/dev/null || true
+  ]' >/dev/null 2>&1 || true
 
 echo "Created temporary SSH SG"
 
