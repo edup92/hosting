@@ -212,22 +212,25 @@ artifacts:
         run: terraform plan -input=false -no-color -out=tfplan
       - name: Generate visual plan
         run: terraform show -no-color tfplan > tfplan_visual
-      - name: Upload plan artifacts
+      - name: Upload tfplan_visual
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-artifacts
-          path: |
-            tfplan
-            tfplan_visual
+          name: tfplan_visual
+          path: tfplan_visual
+      - name: Upload tfplan_visual
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: tfplan
 
   approbal:
     runs-on: ubuntu-latest
     needs: tf-plan
     steps:
-      - name: Download tfplan artifacts
+      - name: Download tfplan_visual
         uses: actions/download-artifact@v4
         with:
-          name: tfplan
+          name: tfplan_visual
           path: .
       - name: Await Manual Approval
         timeout-minutes: 5
@@ -256,7 +259,7 @@ artifacts:
           aws-region: ${{ fromJson(secrets.VARS_JSON).aws_region }}
       - name: Install Ansible
         run: sudo apt-get install -y ansible
-      - name: Download tfplan artifacts
+      - name: Download tfplan
         uses: actions/download-artifact@v4
         with:
           name: tfplan
