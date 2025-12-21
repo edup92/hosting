@@ -8,8 +8,6 @@ required_vars=(
   INSTANCE_ID
   INSTANCE_USER
   INSTANCE_SSH_KEY
-  SG_TEMPSSH_ID
-  SG_MAIN_ID
 )
 
 missing_vars=()

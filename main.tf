@@ -249,8 +249,6 @@ resource "null_resource" "null_ansible_install" {
       INSTANCE_ID    = aws_instance.instance_main.id
       INSTANCE_USER  = local.ansible_user
       INSTANCE_SSH_KEY = nonsensitive(tls_private_key.pem_ssh.private_key_pem)
-      SG_MAIN_ID     = aws_security_group.sg_main.id
-      SG_TEMPSSH_ID  = aws_security_group.sg_tempssh.id
       PLAYBOOK_PATH = local.ansible_path
     }
     command = local.script_ansible
