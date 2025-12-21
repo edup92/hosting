@@ -194,7 +194,7 @@ jobs:
           for d in "$BUILD_LAMBDA_DIR"/*; do
             name="$(basename "$d")"
             echo "Zipping lambda $name"
-            zip -r "$ARTIFACTS_LAMBDA_DIR/$name.zip" -C "$d" .
+            (cd "$d" && zip -r "$GITHUB_WORKSPACE/$ARTIFACTS_LAMBDA_DIR/$name.zip" .)
           done
       - name: Zip ansible
         if: steps.cache-ansible-zips.outputs.cache-hit != 'true'
@@ -202,7 +202,7 @@ jobs:
           for d in "$BUILD_ANSIBLE_DIR"/*; do
             name="$(basename "$d")"
             echo "Zipping ansible $name"
-            zip -r "$ARTIFACTS_ANSIBLE_DIR/$name.zip" -C "$d" .
+            (cd "$d" && zip -r "$GITHUB_WORKSPACE/$ARTIFACTS_ANSIBLE_DIR/$name.zip" .)
           done
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
