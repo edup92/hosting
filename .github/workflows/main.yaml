@@ -302,6 +302,20 @@ jobs:
       - name: Terraform init
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
+
+      - name: Debug after terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          set -euo pipefail
+          echo "TF_DATA_DIR=${TF_DATA_DIR:-<not set>}"
+          echo "PWD=$(pwd)"
+          echo "Listing .terraform:"
+          ls -la .terraform || true
+          echo "Listing .terraform/modules:"
+          ls -la .terraform/modules || true
+          echo "Terraform providers:"
+          terraform providers || true
+          
       - name: Terraform plan
         working-directory: ${{ env.TF_DIR }}
         run: terraform plan -input=false -no-color -out=tfplan
