@@ -245,11 +245,22 @@ jobs:
             echo "Zipping ansible $name"
             (cd "$d" && zip -r "$GITHUB_WORKSPACE/$ARTIFACTS_ANSIBLE_DIR/$name.zip" .)
           done
+      - name: Cache artifacts.zip
+        id: cache-artifacts-zip
+        uses: actions/cache@v4
+        with:
+          path: artifacts.zip
+          key: ${{ runner.os }}-artifacts-zip-${{ hashFiles('build/**') }}
+          restore-keys: |
+            ${{ runner.os }}-artifacts-zip-
+      - name: Zip artifacts root folder
+        if: steps.cache-artifacts-zip.outputs.cache-hit != 'true'
+        run: cd "$GITHUB_WORKSPACE" && zip -r artifacts.zip artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
-          path: artifacts
+          path: artifacts.zip
 
   tf-plan:
     runs-on: ubuntu-latest
@@ -367,6 +378,10 @@ jobs:
         with:
           name: artifacts
           path: .
+      - name: Unzip artifacts.zip to workspace root and remove zip
+        run: |
+          unzip -o artifacts.zip -d "$GITHUB_WORKSPACE"
+          rm -f artifacts.zip
       - name: Set execute permissions for scripts
         run: |
           if [ -d "./scripts" ]; then
