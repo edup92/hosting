@@ -283,7 +283,7 @@ jobs:
       - name: Cache Terraform
         uses: actions/cache@v4
         with:
-          path: env.TF_PLUGIN_CACHE_DIR
+          path: ${{ env.TF_PLUGIN_CACHE_DIR }}
           key: terraform-${{ runner.os }}-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
             ${{ runner.os }}-tfdata-
@@ -377,7 +377,7 @@ jobs:
         id: cache-terraform
         uses: actions/cache@v4
         with:
-          path: env.TF_PLUGIN_CACHE_DIR
+          path: ${{ env.TF_PLUGIN_CACHE_DIR }}
           key: terraform-${{ runner.os }}-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
             ${{ runner.os }}-tfdata-
