@@ -29,23 +29,25 @@
       block:
         - name: Check OS compatibility
           fail:
-            msg: "CloudPanel solo soporta Ubuntu 24.04."
-          when: ansible_distribution != "Ubuntu" or ansible_distribution_version is version('24.04', '!=')
+            msg: "CloudPanel only allowed in Ubuntu 24.04."
+          when: >
+            ansible_facts['distribution'] != 'Ubuntu'
+            or ansible_facts['distribution_version'] is version('24.04', '!=')
         - name: Check if clpctl exists
-          ansible.builtin.shell: command -v clpctl
+          shell: command -v clpctl
           register: clpctl_check
           ignore_errors: true
           changed_when: false
           failed_when: false
         - name: Download CloudPanel installer
-          ansible.builtin.get_url:
+          get_url:
             url: https://installer.cloudpanel.io/ce/v2/install.sh
             dest: /tmp/install.sh
             mode: '0755'
             force: yes
           when: clpctl_check.rc != 0
         - name: Verify SHA256 checksum
-          ansible.builtin.shell: >
+          shell: >
             echo "19cfa702e7936a79e47812ff57d9859175ea902c62a68b2c15ccd1ebaf36caeb  /tmp/install.sh"
             | sha256sum -c -
           register: checksum
@@ -53,7 +55,7 @@
           failed_when: checksum.rc != 0
           when: clpctl_check.rc != 0
         - name: Run CloudPanel installer
-          ansible.builtin.shell: |
+          shell: |
             DB_ENGINE=MARIADB_11.4 bash /tmp/install.sh
           when: clpctl_check.rc != 0
           async: 1800
