@@ -22,6 +22,15 @@ jobs:
             fi
           done
           echo "All required secrets exist"
+
+      - name: Test
+        uses: cardinalby/schema-validator-action@3.1.1
+        id: json-yaml-validate
+        with:
+          json_schema: ./github/schemas/vars_json.json
+          files: config/valid.json
+          comment: "true"
+
       - name: Validate VARS_JSON schema
         env:
           VARS: ${{ secrets.VARS_JSON }}
@@ -263,6 +272,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tfbackend
+          path: ${{ env.TF_DIR }}
+      - name: Download tfvars
+        uses: actions/download-artifact@v4
+        with:
+          name: tfvars
           path: ${{ env.TF_DIR }}
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
