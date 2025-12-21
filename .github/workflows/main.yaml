@@ -342,6 +342,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - approbal
+      - prepare-artifacts
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       TF_DIR: .
