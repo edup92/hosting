@@ -69,7 +69,7 @@ fi
 # 5 - Assign temporary firewall
 
 echo "Assigning temporary SSH firewall"
-set_instance_sg "$SG_TEMP"
+set_instance_sg "$SG_TEMPSSH_ID"
 echo "Temporary SG applied."
 
 # 6 - Start ssh-agent
@@ -98,7 +98,7 @@ done
 
 if [ "$INSTANCE_STATUS" -ne 1 ]; then
   echo "ERROR: Instance unreachable, restoring firewall"
-  set_instance_sg "$SG_MAIN"
+  set_instance_sg "$SG_MAIN_ID"
   exit 1
 fi
 
@@ -114,7 +114,7 @@ if ssh -o BatchMode=yes \
     echo "Playbook already installed"
     echo "If you need to rerun the playbook you need to enter the server and do sudo rm $INSTALLED_FLAG"
     echo "Restoring firewall"
-    set_instance_sg "$SG_MAIN"
+    set_instance_sg "$SG_MAIN_ID"
     echo "Exiting."
     exit 0
 fi
@@ -151,7 +151,7 @@ echo "Saved $INSTALLED_FLAG"
 # 11 - Restore FW
 
 echo "Restoring firewall"
-set_instance_sg "$SG_MAIN"
+set_instance_sg "$SG_MAIN_ID"
 
 # 12 - Cleanup
 
