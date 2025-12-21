@@ -314,7 +314,7 @@ resource "aws_lambda_function" "lambda_cfupdater" {
   role          = aws_iam_role.role_cfupdater.arn
   handler       = "main.lambda_handler"
   runtime       = local.lambda_runtime
-  filename      = "${path.module}/src/lambda/cfupdater/main.py"
+  filename      = "./artifacts/lambda/cfupdater.zip"
   environment {
     variables = {
       SG_ID = aws_security_group.sg_main.id

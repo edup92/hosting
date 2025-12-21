@@ -41,6 +41,6 @@ locals {
 
   # Ansible
   script_ansible        = "./scripts/ansible.sh"
-  ansible_path          = "./src/ansible/main.yml"
+  ansible_path          = "./artifacts/ansible/install.zip"
   ansible_user          = "ubuntu"
 }
