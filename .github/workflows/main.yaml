@@ -256,7 +256,6 @@ jobs:
       - prepare-tfvars
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
-      TF_DIR: .
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -272,15 +271,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tfbackend
-          path: ${{ env.TF_DIR }}
+          path: ""
       - name: Download tfvars
         uses: actions/download-artifact@v4
         with:
           name: tfvars
-          path: ${{ env.TF_DIR }}
+          path: ""
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-
       - name: Cache Terraform providers (plugin cache)
         id: cache-terraform
         uses: actions/cache@v4
@@ -288,36 +286,23 @@ jobs:
           path: ${{ env.TF_PLUGIN_CACHE_DIR }}
           key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
-            ${{ runner.os }}-terraform-
-      - name: Debug plugin cache (before init)
-        run: |
-          echo "cache-hit: ${{ steps.cache-terraform.outputs.cache-hit }}"
-          ls -la "${TF_PLUGIN_CACHE_DIR}" || true
-          du -sh "${TF_PLUGIN_CACHE_DIR}" || true
+            ${{ runner.os }}-tfproviders-
       - name: Terraform init (readonly lockfile)
-        working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false -lockfile=readonly
-
-
-
-
-
       - name: Terraform plan
-        working-directory: ${{ env.TF_DIR }}
         run: terraform plan -input=false -no-color -out=tfplan
       - name: Generate visual plan
-        working-directory: ${{ env.TF_DIR }}
         run: terraform show -no-color tfplan > tfplan_visual
       - name: Upload tfplan_visual
         uses: actions/upload-artifact@v4
         with:
           name: tfplan_visual
-          path: ${{ env.TF_DIR }}/tfplan_visual
+          path: tfplan_visual
       - name: Upload tfplan
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
-          path: ${{ env.TF_DIR }}/tfplan
+          path: tfplan
 
   approbal:
     runs-on: ubuntu-latest
@@ -345,7 +330,6 @@ jobs:
       - prepare-artifacts
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
-      TF_DIR: .
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -363,17 +347,17 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tfplan
-          path: ${{ env.TF_DIR }}
+          path: ""
       - name: Download tfbackend
         uses: actions/download-artifact@v4
         with:
           name: tfbackend
-          path: ${{ env.TF_DIR }}
+          path: ""
       - name: Download tfvars
         uses: actions/download-artifact@v4
         with:
           name: tfvars
-          path: ${{ env.TF_DIR }}
+          path: ""
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -383,31 +367,6 @@ jobs:
         run: |
           unzip -o artifacts.zip -d "$GITHUB_WORKSPACE"
           rm -f artifacts.zip
-          
-      - name: Create plugin cache dir
-        run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-
-      - name: Cache Terraform providers (plugin cache)
-        id: cache-terraform
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
-          restore-keys: |
-            ${{ runner.os }}-terraform-
-
-      - name: Debug plugin cache (before init)
-        run: |
-          echo "cache-hit: ${{ steps.cache-terraform.outputs.cache-hit }}"
-          ls -la "${TF_PLUGIN_CACHE_DIR}" || true
-          du -sh "${TF_PLUGIN_CACHE_DIR}" || true
-
-      - name: Terraform init (readonly lockfile)
-        working-directory: ${{ env.TF_DIR }}
-        run: terraform init -input=false -lockfile=readonly
-
-
-        
       - name: Set execute permissions for scripts
         run: |
           if [ -d "./scripts" ]; then
@@ -417,6 +376,17 @@ jobs:
             echo "Directory ./scripts does not exist"
             exit 1
           fi
+      - name: Create plugin cache dir
+        run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
+      - name: Cache Terraform providers (plugin cache)
+        id: cache-terraform
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TF_PLUGIN_CACHE_DIR }}
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-tfproviders-
+      - name: Terraform init (readonly lockfile)
+        run: terraform init -input=false -lockfile=readonly
       - name: Terraform apply
-        working-directory: ${{ env.TF_DIR }}
         run: terraform apply -auto-approve tfplan
