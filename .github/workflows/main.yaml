@@ -212,7 +212,16 @@ jobs:
             echo "Zipping ansible $name"
             (cd "$d" && zip -r "$GITHUB_WORKSPACE/$ARTIFACTS_ANSIBLE_DIR/$name.zip" .)
           done
+      - name: Cache artifacts root zip
+        id: cache-artifacts-zip
+        uses: actions/cache@v4
+        with:
+          path: artifacts.zip
+          key: ${{ runner.os }}-artifacts-zip-${{ hashFiles('build/lambda/**', 'build/ansible/**') }}
+          restore-keys: |
+            ${{ runner.os }}-artifacts-zip-
       - name: Create artifacts root zip
+        if: steps.cache-artifacts-zip.outputs.cache-hit != 'true'
         run: |
           cd "$GITHUB_WORKSPACE"
           zip -r artifacts.zip "$ARTIFACTS_DIR"
@@ -221,7 +230,7 @@ jobs:
         with:
           name: artifacts
           path: artifacts.zip
-
+          
   tf-plan:
     runs-on: ubuntu-latest
     timeout-minutes: 5
