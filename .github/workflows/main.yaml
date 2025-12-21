@@ -281,7 +281,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-tfinit-
       - name: Terraform init
-        run: terraform init -input=false
+        run: terraform init -input=false -migrate-state
       - name: Terraform plan
         run: terraform plan -input=false -no-color -out=tfplan
       - name: Generate visual plan
