@@ -11,8 +11,7 @@ echo "SSH key loaded into ssh-agent (memory only)"
 # ----------------------------------------
 # Assign temporary firewall
 # ----------------------------------------
-echo "Assigning temporary SSH firewall: $FW_TEMPSSH_NAME"
-
+echo "Assigning temporary SSH firewall"
 aws ec2 modify-instance-attribute \
     --instance-id "$INSTANCE_ID" \
     --groups "$SG_TEMP"
@@ -55,7 +54,7 @@ if ssh -o BatchMode=yes \
       "$INSTANCE_USER@$INSTANCE_IP" "test -f /var/local/.installed"; then
     echo "Playbook already installed"
     echo "If you need to rerun the playbook you need to enter the server and do sudo rm /var/local/.installed"
-    echo "Restoring firewall: $FW_TEMPSSH_NAME"
+    echo "Restoring firewall"
     aws ec2 modify-instance-attribute \
         --instance-id "$INSTANCE_ID" \
         --groups "$SG_MAIN"
@@ -110,7 +109,7 @@ echo "Marked as installed"
 # ----------------------------------------
 # Restore main firewall
 # ----------------------------------------
-echo "Restoring firewall: $FW_TEMPSSH_NAME"
+echo "Restoring firewall"
 
 aws ec2 modify-instance-attribute \
     --instance-id "$INSTANCE_ID" \
