@@ -201,7 +201,7 @@ artifacts:
         with:
           name: tfbackend
           path: .
-      - name: Download terraform.auto.tfvars.json
+      - name: Download tfvars
         uses: actions/download-artifact@v4
         with:
           name: tfvars
@@ -261,15 +261,20 @@ artifacts:
         with:
           name: tfplan
           path: .
-      - name: Download backend.tf
+      - name: Download tfbackend
         uses: actions/download-artifact@v4
         with:
           name: tfbackend
           path: .
-      - name: Download terraform.auto.tfvars.json
+      - name: Download tfvars
         uses: actions/download-artifact@v4
         with:
           name: tfvars
+          path: .
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts
           path: .
       - name: Set execute permissions for scripts
         run: |
