@@ -280,16 +280,28 @@ jobs:
           path: ${{ env.TF_DIR }}
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-      - name: Cache Terraform
+
+      - name: Cache Terraform providers (plugin cache)
+        id: cache-terraform
         uses: actions/cache@v4
         with:
           path: ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: terraform-${{ runner.os }}-${{ hashFiles('**/.terraform.lock.hcl') }}
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
-            ${{ runner.os }}-tfdata-
-      - name: Terraform init
+            ${{ runner.os }}-terraform-
+      - name: Debug plugin cache (before init)
+        run: |
+          echo "cache-hit: ${{ steps.cache-terraform.outputs.cache-hit }}"
+          ls -la "${TF_PLUGIN_CACHE_DIR}" || true
+          du -sh "${TF_PLUGIN_CACHE_DIR}" || true
+      - name: Terraform init (readonly lockfile)
         working-directory: ${{ env.TF_DIR }}
-        run: terraform init -input=false
+        run: terraform init -input=false -lockfile=readonly
+
+
+
+
+
       - name: Terraform plan
         working-directory: ${{ env.TF_DIR }}
         run: terraform plan -input=false -no-color -out=tfplan
@@ -371,26 +383,31 @@ jobs:
         run: |
           unzip -o artifacts.zip -d "$GITHUB_WORKSPACE"
           rm -f artifacts.zip
+          
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-      - name: Cache terraform (workdir .terraform + plugin cache)
+
+      - name: Cache Terraform providers (plugin cache)
         id: cache-terraform
         uses: actions/cache@v4
         with:
           path: ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: terraform-${{ runner.os }}-${{ hashFiles('**/.terraform.lock.hcl') }}
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
-            ${{ runner.os }}-tfdata-
-      - name: Debug terraform cache restore
+            ${{ runner.os }}-terraform-
+
+      - name: Debug plugin cache (before init)
         run: |
           echo "cache-hit: ${{ steps.cache-terraform.outputs.cache-hit }}"
-          ls -la "${{ env.TF_DIR }}/.terraform" || true
-          du -sh "${{ env.TF_DIR }}/.terraform" || true
+          ls -la "${TF_PLUGIN_CACHE_DIR}" || true
           du -sh "${TF_PLUGIN_CACHE_DIR}" || true
 
-      - name: Terraform init
+      - name: Terraform init (readonly lockfile)
         working-directory: ${{ env.TF_DIR }}
-        run: terraform init -input=false
+        run: terraform init -input=false -lockfile=readonly
+
+
+        
       - name: Set execute permissions for scripts
         run: |
           if [ -d "./scripts" ]; then
