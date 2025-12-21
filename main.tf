@@ -207,9 +207,7 @@ resource "aws_dlm_lifecycle_policy" "dlm_main" {
 
 resource "null_resource" "null_ansible_install" {
   depends_on = [
-    aws_instance.instance_main,
-    aws_security_group.sg_tempssh,
-    aws_security_group.sg_main
+    aws_instance.instance_main
   ]
   triggers = {
     instance_id   = aws_instance.instance_main.id
