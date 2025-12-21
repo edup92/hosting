@@ -114,65 +114,65 @@ jobs:
           name: tfvars
           path: terraform.auto.tfvars.json
           
-artifacts:
-  runs-on: ubuntu-latest
-  env:
-    BUILD_DIR: "build"
-    ARTIFACTS_DIR: "artifacts"
-    BUILD_LAMBDA_DIR: "build/lambda"
-    BUILD_ANSIBLE_DIR: "build/ansible"
-    ARTIFACTS_LAMBDA_DIR: "artifacts/lambda"
-    ARTIFACTS_ANSIBLE_DIR: "artifacts/ansible"
-  steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
-    - name: Upgrade pip
-      run: python -m pip install --upgrade pip
-    - name: Setup Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: "20"
-    - name: Check build structure
-      run: |
-        if [[ ! -d "$BUILD_DIR" ]]; then
-          echo "::error::Missing required folder: $BUILD_DIR"
-          exit 1
-        fi
-    - name: Create artifacts folder
-      run: |
-        mkdir -p "$ARTIFACTS_DIR"
-        mkdir -p "$ARTIFACTS_ANSIBLE_DIR"
-        mkdir -p "$ARTIFACTS_LAMBDA_DIR"
-    - name: Scan build lambdas + install dependencies
-      if: ${{ hashFiles(format('{0}/*', env.BUILD_LAMBDA_DIR)) != '' }}
-      run: |
-        for d in "$BUILD_LAMBDA_DIR"/*; do
-          name="$(basename "$d")"
-          if [[ -f "$d/requirements.txt" ]]; then
-            echo "Lambda $name: python"
-            mkdir -p "$d/packages"
-            python -m pip install -r "$d/requirements.txt" -t "$d/packages"
-            continue
+  artifacts:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_DIR: "build"
+      ARTIFACTS_DIR: "artifacts"
+      BUILD_LAMBDA_DIR: "build/lambda"
+      BUILD_ANSIBLE_DIR: "build/ansible"
+      ARTIFACTS_LAMBDA_DIR: "artifacts/lambda"
+      ARTIFACTS_ANSIBLE_DIR: "artifacts/ansible"
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Check build structure
+        run: |
+          if [[ ! -d "$BUILD_DIR" ]]; then
+            echo "::error::Missing required folder: $BUILD_DIR"
+            exit 1
           fi
-          if [[ -f "$d/package.json" ]]; then
-            echo "Lambda $name: nodejs"
-            (cd "$d" && npm ci --omit=dev)
-            continue
-          fi
-          echo "::error::Lambda $name runtime unknown (add requirements.txt or package.json)"
-          exit 1
-        done
-    - name: Zip lambdas into artifacts
-      if: ${{ hashFiles(format('{0}/*', env.BUILD_LAMBDA_DIR)) != '' }}
-      run: for d in "$BUILD_LAMBDA_DIR"/*; do zip -r "$ARTIFACTS_LAMBDA_DIR/$(basename "$d").zip" "$d"; done
-    - name: Zip ansible into artifacts
-      if: ${{ hashFiles(format('{0}/*', env.BUILD_ANSIBLE_DIR)) != '' }}
-      run: for d in "$BUILD_ANSIBLE_DIR"/*; do zip -r "$ARTIFACTS_ANSIBLE_DIR/$(basename "$d").zip" "$d"; done
-    - name: Upload artifacts folder
+      - name: Create artifacts folder
+        run: |
+          mkdir -p "$ARTIFACTS_DIR"
+          mkdir -p "$ARTIFACTS_ANSIBLE_DIR"
+          mkdir -p "$ARTIFACTS_LAMBDA_DIR"
+      - name: Scan build lambdas + install dependencies
+        if: ${{ hashFiles(format('{0}/*', env.BUILD_LAMBDA_DIR)) != '' }}
+        run: |
+          for d in "$BUILD_LAMBDA_DIR"/*; do
+            name="$(basename "$d")"
+            if [[ -f "$d/requirements.txt" ]]; then
+              echo "Lambda $name: python"
+              mkdir -p "$d/packages"
+              python -m pip install -r "$d/requirements.txt" -t "$d/packages"
+              continue
+            fi
+            if [[ -f "$d/package.json" ]]; then
+              echo "Lambda $name: nodejs"
+              (cd "$d" && npm ci --omit=dev)
+              continue
+            fi
+            echo "::error::Lambda $name runtime unknown (add requirements.txt or package.json)"
+            exit 1
+          done
+      - name: Zip lambdas into artifacts
+        if: ${{ hashFiles(format('{0}/*', env.BUILD_LAMBDA_DIR)) != '' }}
+        run: for d in "$BUILD_LAMBDA_DIR"/*; do zip -r "$ARTIFACTS_LAMBDA_DIR/$(basename "$d").zip" "$d"; done
+      - name: Zip ansible into artifacts
+        if: ${{ hashFiles(format('{0}/*', env.BUILD_ANSIBLE_DIR)) != '' }}
+        run: for d in "$BUILD_ANSIBLE_DIR"/*; do zip -r "$ARTIFACTS_ANSIBLE_DIR/$(basename "$d").zip" "$d"; done
+      - name: Upload artifacts folder
       uses: actions/upload-artifact@v4
       with:
         name: artifacts
