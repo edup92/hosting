@@ -81,7 +81,7 @@ jobs:
             echo "Enabling default encryption (SSE-S3) for $BUCKET_NAME"
             aws s3api put-bucket-encryption --bucket "$BUCKET_NAME" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
           fi
-      - name: Create TF Backend (jq -> backend.tf.json)
+      - name: Create TF Backend (backend.tf)
         env:
           BUCKET_NAME: ${{ fromJson(secrets.VARS_JSON).project_name }}-bucket-tfstate
           AWS_REGION: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_region }}
@@ -89,11 +89,11 @@ jobs:
           tee backend.tf > /dev/null <<EOF
           terraform {
             backend "s3" {
-              bucket = "$BUCKET_NAME"
-              key    = "terraform.tfstate"
+              bucket       = "$BUCKET_NAME"
+              key          = "terraform.tfstate"
               use_lockfile = true
-              region = "$AWS_REGION"
-              encrypt = true
+              region       = "$AWS_REGION"
+              encrypt      = true
             }
           }
           EOF
@@ -248,6 +248,7 @@ jobs:
       - prepare-artifacts
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
+      TF_DIR: .
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -263,39 +264,43 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tfbackend
-          path: .
+          path: ${{ env.TF_DIR }}
       - name: Download tfvars
         uses: actions/download-artifact@v4
         with:
           name: tfvars
-          path: .
+          path: ${{ env.TF_DIR }}
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-      - name: Cache terraform
+      - name: Cache terraform (modules + providers + plugin cache)
         uses: actions/cache@v4
         with:
           path: |
-            .terraform
+            ${{ env.TF_DIR }}/.terraform/modules
+            ${{ env.TF_DIR }}/.terraform/providers
             ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: ${{ runner.os }}-tfinit-${{ hashFiles('**/*.tf', '.terraform.lock.hcl') }}
+          key: ${{ runner.os }}-tfinit-${{ hashFiles('*.tf', '.terraform.lock.hcl') }}
           restore-keys: |
             ${{ runner.os }}-tfinit-
       - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
       - name: Terraform plan
+        working-directory: ${{ env.TF_DIR }}
         run: terraform plan -input=false -no-color -out=tfplan
       - name: Generate visual plan
+        working-directory: ${{ env.TF_DIR }}
         run: terraform show -no-color tfplan > tfplan_visual
       - name: Upload tfplan_visual
         uses: actions/upload-artifact@v4
         with:
           name: tfplan_visual
-          path: tfplan_visual
+          path: ${{ env.TF_DIR }}/tfplan_visual
       - name: Upload tfplan
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
-          path: tfplan
+          path: ${{ env.TF_DIR }}/tfplan
 
   approbal:
     runs-on: ubuntu-latest
@@ -322,6 +327,7 @@ jobs:
       - approbal
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
+      TF_DIR: .
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -334,22 +340,37 @@ jobs:
           aws-secret-access-key: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_secret_access_key }}
           aws-region: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_region }}
       - name: Install Ansible
-        run: sudo apt-get install -y ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible
       - name: Download tfplan
         uses: actions/download-artifact@v4
         with:
           name: tfplan
-          path: .
+          path: ${{ env.TF_DIR }}
       - name: Download tfbackend
         uses: actions/download-artifact@v4
         with:
           name: tfbackend
-          path: .
+          path: ${{ env.TF_DIR }}
       - name: Download tfvars
         uses: actions/download-artifact@v4
         with:
           name: tfvars
-          path: .
+          path: ${{ env.TF_DIR }}
+      - name: Create plugin cache dir
+        run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
+      - name: Cache terraform (modules + providers + plugin cache)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.TF_DIR }}/.terraform/modules
+            ${{ env.TF_DIR }}/.terraform/providers
+            ${{ env.TF_PLUGIN_CACHE_DIR }}
+          key: ${{ runner.os }}-tfinit-${{ hashFiles('*.tf', '.terraform.lock.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-tfinit-
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -368,18 +389,6 @@ jobs:
             echo "Directory ./scripts does not exist"
             exit 1
           fi
-      - name: Create plugin cache dir
-        run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-      - name: Cache terraform
-        uses: actions/cache@v4
-        with:
-          path: |
-            .terraform
-            ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: ${{ runner.os }}-tfinit-${{ hashFiles('**/*.tf', '.terraform.lock.hcl') }}
-          restore-keys: |
-            ${{ runner.os }}-tfinit-
-      - name: Terraform init
-        run: terraform init -input=false
       - name: Terraform apply
+        working-directory: ${{ env.TF_DIR }}
         run: terraform apply -auto-approve tfplan
