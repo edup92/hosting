@@ -230,7 +230,7 @@ jobs:
         with:
           name: artifacts
           path: artifacts.zip
-          
+
   tf-plan:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -239,7 +239,7 @@ jobs:
       - prepare-tfvars
       - prepare-artifacts
     env:
-      TF_PLUGIN_CACHE_DIR: .terraform.d/plugin-cache
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -313,7 +313,7 @@ jobs:
     needs:
       - approbal
     env:
-      TF_PLUGIN_CACHE_DIR: .terraform.d/plugin-cache
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -367,6 +367,52 @@ jobs:
           key: ${{ runner.os }}-tfinit-${{ hashFiles('**/*.tf', '.terraform.lock.hcl') }}
           restore-keys: |
             ${{ runner.os }}-tfinit-
+
+      - name: Inspect artifacts folder
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Workspace: $GITHUB_WORKSPACE"
+          echo ""
+          echo "Top-level files/directories:"
+          ls -la
+
+          echo ""
+          echo "Find any 'artifacts' directory (in case it was nested):"
+          find . -maxdepth 5 -type d -name artifacts -print
+
+          echo ""
+          if [ ! -d "./artifacts" ]; then
+            echo "ERROR: ./artifacts directory not found"
+            echo "Showing all directories (max depth 4):"
+            find . -maxdepth 4 -type d -print
+            exit 1
+          fi
+
+          echo ""
+          echo "Tree of ./artifacts:"
+          if command -v tree >/dev/null 2>&1; then
+            tree -a ./artifacts
+          else
+            sudo apt-get update -y
+            sudo apt-get install -y tree
+            tree -a ./artifacts
+          fi
+
+          echo ""
+          echo "Files with sizes (sorted):"
+          find ./artifacts -type f -printf '%10s  %p\n' | sort -n
+
+          echo ""
+          echo "Permissions (directories):"
+          find ./artifacts -type d -exec ls -ld {} \;
+
+          echo ""
+          echo "Permissions (files):"
+          find ./artifacts -type f -exec ls -l {} \;
+
+
       - name: Terraform init
         run: terraform init -input=false
       - name: Terraform apply
