@@ -341,8 +341,11 @@ jobs:
   tf-apply:
     runs-on: ubuntu-latest
     needs:
+      - tf-plan
       - approbal
       - prepare-artifacts
+      - prepare-tfbackend
+      - prepare-tfvars
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       TF_DIR: .
