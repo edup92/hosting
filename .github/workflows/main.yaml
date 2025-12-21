@@ -27,9 +27,6 @@ jobs:
           VARS: ${{ secrets.VARS_JSON }}
         run: |
           jq -e '
-            (.aws_access_key_id     | type=="string") and
-            (.aws_secret_access_key | type=="string") and
-            (.aws_region            | type=="string") and
             (.cf_token              | type=="string") and
             (.uptimerobot_token     | type=="string") and
             (.admin_ip              | type=="string") and
