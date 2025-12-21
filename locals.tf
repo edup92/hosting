@@ -22,7 +22,6 @@ locals {
 
   # Network
   firewall_main_name    = "${var.project_name}-firewall-main"
-  firewall_tempssh_name = "${var.project_name}-firewall-tempssh"
   firewall_test_name    = "${var.project_name}-firewall-test"
   eip_name              = "${var.project_name}-eip-main"
 

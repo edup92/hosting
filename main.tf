@@ -42,15 +42,6 @@ resource "aws_security_group" "sg_test" {
   }
 }
 
-resource "aws_security_group" "sg_tempssh" {
-  name        = local.firewall_tempssh_name
-  description = "Security group ${local.firewall_tempssh_name} for temporary SSH"
-  vpc_id      = data.aws_vpc.default.id
-  tags = {
-    Name = local.firewall_tempssh_name
-  }
-}
-
 resource "aws_security_group_rule" "sgrule_main_adminaccess" {
   type              = "ingress"
   from_port         = 443
@@ -89,27 +80,6 @@ resource "aws_security_group_rule" "sgrule_main_egress" {
   cidr_blocks       = ["0.0.0.0/0"]
   ipv6_cidr_blocks  = ["::/0"]
   security_group_id = aws_security_group.sg_main.id
-  description       = "Allow egress"
-}
-
-resource "aws_security_group_rule" "sgrule_tempssh" {
-  type              = "ingress"
-  from_port         = 22
-  to_port           = 22
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.sg_tempssh.id
-  description       = "Allow SSH from anywhere (IPv4)"
-}
-
-resource "aws_security_group_rule" "sgrule_tempssh_egress" {
-  type              = "egress"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
-  cidr_blocks       = ["0.0.0.0/0"]
-  ipv6_cidr_blocks  = ["::/0"]
-  security_group_id = aws_security_group.sg_tempssh.id
   description       = "Allow egress"
 }
 
