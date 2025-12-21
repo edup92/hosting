@@ -238,7 +238,6 @@ resource "aws_dlm_lifecycle_policy" "dlm_main" {
 resource "null_resource" "null_ansible_install" {
   depends_on = [
     aws_instance.instance_main,
-    aws_eip.eip_main,
     aws_security_group.sg_tempssh,
     aws_security_group.sg_main
   ]
@@ -247,7 +246,6 @@ resource "null_resource" "null_ansible_install" {
   }
   provisioner "local-exec" {
     environment = {
-      INSTANCE_IP    = aws_eip.eip_main.public_ip
       INSTANCE_ID    = aws_instance.instance_main.id
       INSTANCE_USER  = local.ansible_user
       INSTANCE_SSH_KEY = nonsensitive(tls_private_key.pem_ssh.private_key_pem)

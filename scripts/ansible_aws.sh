@@ -6,7 +6,6 @@ set -euo pipefail
 required_vars=(
   PLAYBOOK_PATH
   INSTANCE_ID
-  INSTANCE_IP
   INSTANCE_USER
   INSTANCE_SSH_KEY
   SG_TEMPSSH_ID
@@ -35,29 +34,11 @@ WORKDIR="$(mktemp -d)"
 MAIN_PLAYBOOK="$WORKDIR/main.yml"
 INSTANCE_STATUS=0
 INSTALLED_FLAG="/var/local/.installed"
-
-# Functions
-
-set_instance_sg() {
-  local sg_id="$1"
-  aws ec2 modify-instance-attribute \
-      --instance-id "$INSTANCE_ID" \
-      --groups "$sg_id"
-}
+VPC_ID="$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text)"
 
 # 1 - Requeriments
 
 command -v unzip >/dev/null 2>&1 || { echo "ERROR: unzip not installed"; exit 1; }
-
-if [ -z "${PLAYBOOK_PATH:-}" ]; then
-  echo "ERROR: PLAYBOOK_PATH not provided"
-  exit 1
-fi
-
-if [ ! -f "$PLAYBOOK_PATH" ]; then
-  echo "ERROR: Playbook ZIP not found at: $PLAYBOOK_PATH"
-  exit 1
-fi
 
 # 2 - Uncompress ZIP
 
@@ -94,10 +75,45 @@ if [ -n "${EXTRAVARS:-}" ]; then
   ANSIBLE_EXTRA_VARS_ARGS=(--extra-vars "$EXTRAVARS")
 fi
 
-# 5 - Assign temporary firewall
+# 5 - Get instance data
+
+INSTANCE_IP="$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+  --query "Reservations[0].Instances[0].NetworkInterfaces[0].Association.PublicIp || Reservations[0].Instances[0].PublicIpAddress" \
+  --output text)"
+
+INSTANCE_SGS="$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+  --query 'Reservations[0].Instances[0].SecurityGroups[].GroupId' \
+  --output text)"
+
+# 6 - Create TEMP SG
+
+SG_TEMP_ID="$(aws ec2 create-security-group \
+  --group-name "SG_TEMPSSH" \
+  --description "Temporary SSH access" \
+  --vpc-id "$VPC_ID" \
+  --query 'GroupId' \
+  --output text)"
+
+aws ec2 authorize-security-group-ingress \
+  --group-id "$SG_TEMP_ID" \
+  --ip-permissions '[
+    {"IpProtocol":"tcp","FromPort":22,"ToPort":22,"IpRanges":[{"CidrIp":"0.0.0.0/0"}],"Ipv6Ranges":[{"CidrIpv6":"::/0"}]}
+  ]'
+
+aws ec2 authorize-security-group-egress \
+  --group-id "$SG_TEMP_ID" \
+  --ip-permissions '[
+    {"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0"}],"Ipv6Ranges":[{"CidrIpv6":"::/0"}]}
+  ]' 2>/dev/null || true
+
+echo "Created temporary SSH SG"
+
+# 7 - Assign temporary firewall
 
 echo "Assigning temporary SSH firewall"
-set_instance_sg "$SG_TEMPSSH_ID"
+aws ec2 modify-instance-attribute \
+  --instance-id "$INSTANCE_ID" \
+  --groups $INSTANCE_SGS "$SG_TEMP_ID"
 echo "Temporary SG applied."
 
 # 6 - Start ssh-agent
@@ -179,7 +195,11 @@ echo "Saved $INSTALLED_FLAG"
 # 11 - Restore FW
 
 echo "Restoring firewall"
-set_instance_sg "$SG_MAIN_ID"
+
+NEW_SGS="$(printf '%s\n' $INSTANCE_SGS | awk -v rm="$TEMP_SG_ID" '$0!=rm' | paste -sd' ' -)"
+aws ec2 modify-instance-attribute \
+  --instance-id "$INSTANCE_ID" \
+  --groups $NEW_SGS
 
 # 12 - Cleanup
 
