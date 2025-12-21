@@ -43,7 +43,7 @@ jobs:
           ' <<<"$VARS" >/dev/null || { echo "Error: VARS_JSON schema invalid"; exit 1; }
           echo "VARS_JSON schema valid"
 
-  prepare-backend:
+  prepare-tfbackend:
     runs-on: ubuntu-latest
     needs: validate-secrets
     steps:
@@ -114,15 +114,15 @@ jobs:
           name: tfvars
           path: terraform.auto.tfvars.json
           
-  artifacts:
+  prepare-artifacts:
     runs-on: ubuntu-latest
     env:
-      BUILD_DIR: "build"
-      ARTIFACTS_DIR: "artifacts"
-      BUILD_LAMBDA_DIR: "build/lambda"
-      BUILD_ANSIBLE_DIR: "build/ansible"
-      ARTIFACTS_LAMBDA_DIR: "artifacts/lambda"
-      ARTIFACTS_ANSIBLE_DIR: "artifacts/ansible"
+      BUILD_DIR: build
+      BUILD_LAMBDA_DIR: build/lambda
+      BUILD_ANSIBLE_DIR: build/ansible
+      ARTIFACTS_DIR: artifacts
+      ARTIFACTS_LAMBDA_DIR: artifacts/lambda
+      ARTIFACTS_ANSIBLE_DIR: artifacts/ansible
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -130,61 +130,132 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Upgrade pip
-        run: python -m pip install --upgrade pip
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Check build structure
+      - name: Cache python lambda build
+        id: cache-python
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BUILD_LAMBDA_DIR }}/**/packages
+          key: >-
+            ${{ runner.os }}-py-
+            ${{ hashFiles(format('{0}/**/requirements.txt', env.BUILD_LAMBDA_DIR)) }}-
+            ${{ hashFiles(format('{0}/**/*.py', env.BUILD_LAMBDA_DIR)) }}
+      - name: Cache node lambda build
+        id: cache-node
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BUILD_LAMBDA_DIR }}/**/node_modules
+          key: >-
+            ${{ runner.os }}-node-
+            ${{ hashFiles(format('{0}/**/package-lock.json', env.BUILD_LAMBDA_DIR)) }}-
+            ${{ hashFiles(format('{0}/**/*.js', env.BUILD_LAMBDA_DIR)) }}
+      - name: Create artifacts folders
         run: |
-          if [[ ! -d "$BUILD_DIR" ]]; then
-            echo "::error::Missing required folder: $BUILD_DIR"
-            exit 1
-          fi
-      - name: Create artifacts folder
-        run: |
-          mkdir -p "$ARTIFACTS_DIR"
-          mkdir -p "$ARTIFACTS_ANSIBLE_DIR"
           mkdir -p "$ARTIFACTS_LAMBDA_DIR"
-      - name: Scan build lambdas + install dependencies
-        if: ${{ hashFiles(format('{0}/*', env.BUILD_LAMBDA_DIR)) != '' }}
+          mkdir -p "$ARTIFACTS_ANSIBLE_DIR"
+      - name: Build python lambdas (cache-aware)
+        if: steps.cache-python.outputs.cache-hit != 'true'
         run: |
           for d in "$BUILD_LAMBDA_DIR"/*; do
-            name="$(basename "$d")"
             if [[ -f "$d/requirements.txt" ]]; then
-              echo "Lambda $name: python"
+              echo "Building python lambda $(basename "$d")"
               mkdir -p "$d/packages"
               python -m pip install -r "$d/requirements.txt" -t "$d/packages"
-              continue
             fi
-            if [[ -f "$d/package.json" ]]; then
-              echo "Lambda $name: nodejs"
-              (cd "$d" && npm ci --omit=dev)
-              continue
-            fi
-            echo "::error::Lambda $name runtime unknown (add requirements.txt or package.json)"
-            exit 1
           done
-      - name: Zip lambdas into artifacts
-        if: ${{ hashFiles(format('{0}/*', env.BUILD_LAMBDA_DIR)) != '' }}
-        run: for d in "$BUILD_LAMBDA_DIR"/*; do zip -r "$ARTIFACTS_LAMBDA_DIR/$(basename "$d").zip" "$d"; done
-      - name: Zip ansible into artifacts
-        if: ${{ hashFiles(format('{0}/*', env.BUILD_ANSIBLE_DIR)) != '' }}
-        run: for d in "$BUILD_ANSIBLE_DIR"/*; do zip -r "$ARTIFACTS_ANSIBLE_DIR/$(basename "$d").zip" "$d"; done
-      - name: Upload artifacts folder
-      uses: actions/upload-artifact@v4
-      with:
-        name: artifacts
-        path: artifacts/
+      - name: Build node lambdas (cache-aware)
+        if: steps.cache-node.outputs.cache-hit != 'true'
+        run: |
+          for d in "$BUILD_LAMBDA_DIR"/*; do
+            if [[ -f "$d/package.json" ]]; then
+              echo "Building node lambda $(basename "$d")"
+              (cd "$d" && npm ci --omit=dev)
+            fi
+          done
+      - name: Cache lambda zip artifacts
+        id: cache-lambda-zips
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ARTIFACTS_LAMBDA_DIR }}
+          key: >-
+            ${{ runner.os }}-lambda-zips-
+            ${{ hashFiles(format('{0}/**', env.BUILD_LAMBDA_DIR)) }}
+      - name: Cache ansible zip artifacts
+        id: cache-ansible-zips
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ARTIFACTS_ANSIBLE_DIR }}
+          key: >-
+            ${{ runner.os }}-ansible-zips-
+            ${{ hashFiles(format('{0}/**', env.BUILD_ANSIBLE_DIR)) }}
+      - name: Zip lambdas
+        if: steps.cache-lambda-zips.outputs.cache-hit != 'true'
+        run: |
+          for d in "$BUILD_LAMBDA_DIR"/*; do
+            zip -r "$ARTIFACTS_LAMBDA_DIR/$(basename "$d").zip" "$d"
+          done
+      - name: Zip ansible
+        if: steps.cache-ansible-zips.outputs.cache-hit != 'true'
+        run: |
+          for d in "$BUILD_ANSIBLE_DIR"/*; do
+            zip -r "$ARTIFACTS_ANSIBLE_DIR/$(basename "$d").zip" "$d"
+          done
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: ${{ env.ARTIFACTS_DIR }}
+
+  tf-init:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    needs:
+      - prepare-tfbackend
+      - prepare-artifacts
+    env:
+      TF_PLUGIN_CACHE_DIR: .terraform.d/plugin-cache
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ fromJson(secrets.VARS_JSON).aws_access_key_id }}
+          aws-secret-access-key: ${{ fromJson(secrets.VARS_JSON).aws_secret_access_key }}
+          aws-region: ${{ fromJson(secrets.VARS_JSON).aws_region }}
+      - name: Download backend.tf
+        uses: actions/download-artifact@v4
+        with:
+          name: tfbackend
+          path: .
+      - name: Create plugin cache dir
+        run: mkdir -p .terraform.d/plugin-cache
+      - name: Cache terraform
+        uses: actions/cache@v4
+        with:
+          path: |
+            .terraform
+            .terraform.d/plugin-cache
+          key: >-
+            ${{ runner.os }}-tf-${{ hashFiles('.terraform.lock.hcl') }}-${{ hashFiles('**/*.tf', '**/*.tf.json', '**/*.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-tf-${{ hashFiles('.terraform.lock.hcl') }}-
+            ${{ runner.os }}-tf-
+      - name: Terraform init
+        run: terraform init -input=false
 
   tf-plan:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs:
-      - prepare-backend
+      - prepare-tfbackend
       - prepare-tfvars
-      - artifacts
+      - prepare-artifacts
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
