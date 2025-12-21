@@ -1,6 +1,14 @@
 # hosting-temp
 
 # Run bootstrap.sh on Cloudshell
+# Paste SERVICE_ACCOUNT as secret in Github Actions. Required JSON:
+
+{
+  "aws_access_key_id": "",
+  "aws_secret_access_key": "",
+  "aws_region": "eu-south-2"
+}
+
 # Paste VARS_JSON as secret in Github Actions. Required JSON:
 
 {
