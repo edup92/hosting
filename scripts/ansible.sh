@@ -1,7 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Variables
+# Variable validation
+
+required_vars=(
+  PLAYBOOK_PATH
+  INSTANCE_ID
+  INSTANCE_IP
+  INSTANCE_USER
+  INSTANCE_SSH_KEY
+  SG_TEMPSSH_ID
+  SG_MAIN_ID
+)
+
+missing_vars=()
+
+for var in "${required_vars[@]}"; do
+  if [ -z "${!var:-}" ]; then
+    missing_vars+=("$var")
+  fi
+done
+
+if [ "${#missing_vars[@]}" -ne 0 ]; then
+  echo "ERROR: Missing required environment variables:"
+  for var in "${missing_vars[@]}"; do
+    echo "  - $var"
+  done
+  exit 1
+fi
+
+# System variables
 
 WORKDIR="$(mktemp -d)"
 MAIN_PLAYBOOK="$WORKDIR/main.yml"
