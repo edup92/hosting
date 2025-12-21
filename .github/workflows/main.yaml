@@ -136,19 +136,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.BUILD_LAMBDA_DIR }}/**/packages
-          key: >-
-            ${{ runner.os }}-py-
-            ${{ hashFiles(format('{0}/**/requirements.txt', env.BUILD_LAMBDA_DIR)) }}-
-            ${{ hashFiles(format('{0}/**/*.py', env.BUILD_LAMBDA_DIR)) }}
+          key: ${{ runner.os }}-lambda-py-${{ hashFiles('build/lambda/**') }}
+          restore-keys: |
+            ${{ runner.os }}-lambda-py-
       - name: Cache node lambda build
         id: cache-node
         uses: actions/cache@v4
         with:
           path: ${{ env.BUILD_LAMBDA_DIR }}/**/node_modules
-          key: >-
-            ${{ runner.os }}-node-
-            ${{ hashFiles(format('{0}/**/package-lock.json', env.BUILD_LAMBDA_DIR)) }}-
-            ${{ hashFiles(format('{0}/**/*.js', env.BUILD_LAMBDA_DIR)) }}
+          key: ${{ runner.os }}-lambda-node-${{ hashFiles('build/lambda/**') }}
+          restore-keys: |
+            ${{ runner.os }}-lambda-node-
       - name: Create artifacts folders
         run: |
           mkdir -p "$ARTIFACTS_LAMBDA_DIR"
@@ -156,38 +154,48 @@ jobs:
       - name: Build python lambdas (cache-aware)
         if: steps.cache-python.outputs.cache-hit != 'true'
         run: |
+          found=0
           for d in "$BUILD_LAMBDA_DIR"/*; do
             if [[ -f "$d/requirements.txt" ]]; then
+              found=1
               echo "Building python lambda $(basename "$d")"
               mkdir -p "$d/packages"
               python -m pip install -r "$d/requirements.txt" -t "$d/packages"
             fi
           done
+          if [[ "$found" -eq 0 ]]; then
+            echo "No requirements.txt found in $BUILD_LAMBDA_DIR/*; skipping python build."
+          fi
       - name: Build node lambdas (cache-aware)
         if: steps.cache-node.outputs.cache-hit != 'true'
         run: |
+          found=0
           for d in "$BUILD_LAMBDA_DIR"/*; do
             if [[ -f "$d/package.json" ]]; then
+              found=1
               echo "Building node lambda $(basename "$d")"
               (cd "$d" && npm ci --omit=dev)
             fi
           done
+          if [[ "$found" -eq 0 ]]; then
+            echo "No package.json found in $BUILD_LAMBDA_DIR/*; skipping node build."
+          fi
       - name: Cache lambda zip artifacts
         id: cache-lambda-zips
         uses: actions/cache@v4
         with:
           path: ${{ env.ARTIFACTS_LAMBDA_DIR }}
-          key: >-
+          key: ${{ runner.os }}-lambda-zips-${{ hashFiles('build/lambda/**') }}
+          restore-keys: |
             ${{ runner.os }}-lambda-zips-
-            ${{ hashFiles(format('{0}/**', env.BUILD_LAMBDA_DIR)) }}
       - name: Cache ansible zip artifacts
         id: cache-ansible-zips
         uses: actions/cache@v4
         with:
           path: ${{ env.ARTIFACTS_ANSIBLE_DIR }}
-          key: >-
+          key: ${{ runner.os }}-ansible-zips-${{ hashFiles('build/ansible/**') }}
+          restore-keys: |
             ${{ runner.os }}-ansible-zips-
-            ${{ hashFiles(format('{0}/**', env.BUILD_ANSIBLE_DIR)) }}
       - name: Zip lambdas
         if: steps.cache-lambda-zips.outputs.cache-hit != 'true'
         run: |
