@@ -266,16 +266,25 @@ jobs:
           path: ${{ env.TF_DIR }}
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-      - name: Cache terraform (modules + providers + plugin cache)
+      - name: Cache terraform (workdir .terraform + plugin cache)
+        id: cache-terraform
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.TF_DIR }}/.terraform/modules
-            ${{ env.TF_DIR }}/.terraform/providers
+            ${{ env.TF_DIR }}/.terraform
             ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: ${{ runner.os }}-tfinit-${{ hashFiles('*.tf', '.terraform.lock.hcl') }}
+          key: ${{ runner.os }}-tf-${{ hashFiles('**/*.tf', '**/*.tf.json', '.terraform.lock.hcl', 'backend.tf') }}
           restore-keys: |
-            ${{ runner.os }}-tfinit-
+            ${{ runner.os }}-tf-
+
+      - name: Debug terraform cache restore
+        run: |
+          echo "cache-hit: ${{ steps.cache-terraform.outputs.cache-hit }}"
+          ls -la "${{ env.TF_DIR }}/.terraform" || true
+          ls -la "${{ env.TF_DIR }}/.terraform/modules" || true
+          du -sh "${{ env.TF_DIR }}/.terraform" || true
+          du -sh "${TF_PLUGIN_CACHE_DIR}" || true
+
       - name: Terraform init
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
@@ -361,16 +370,25 @@ jobs:
           rm -f artifacts.zip
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-      - name: Cache terraform (modules + providers + plugin cache)
+      - name: Cache terraform (workdir .terraform + plugin cache)
+        id: cache-terraform
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.TF_DIR }}/.terraform/modules
-            ${{ env.TF_DIR }}/.terraform/providers
+            ${{ env.TF_DIR }}/.terraform
             ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: ${{ runner.os }}-tfinit-${{ hashFiles('*.tf', '.terraform.lock.hcl') }}
+          key: ${{ runner.os }}-tf-${{ hashFiles('**/*.tf', '**/*.tf.json', '.terraform.lock.hcl', 'backend.tf') }}
           restore-keys: |
-            ${{ runner.os }}-tfinit-
+            ${{ runner.os }}-tf-
+
+      - name: Debug terraform cache restore
+        run: |
+          echo "cache-hit: ${{ steps.cache-terraform.outputs.cache-hit }}"
+          ls -la "${{ env.TF_DIR }}/.terraform" || true
+          ls -la "${{ env.TF_DIR }}/.terraform/modules" || true
+          du -sh "${{ env.TF_DIR }}/.terraform" || true
+          du -sh "${TF_PLUGIN_CACHE_DIR}" || true
+
       - name: Terraform init
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
