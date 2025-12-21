@@ -196,7 +196,7 @@ echo "Saved $INSTALLED_FLAG"
 
 echo "Restoring firewall"
 
-NEW_SGS="$(printf '%s\n' $INSTANCE_SGS | awk -v rm="$TEMP_SG_ID" '$0!=rm' | paste -sd' ' -)"
+NEW_SGS="$(printf '%s\n' $INSTANCE_SGS | awk -v rm="$SG_TEMP_ID" '$0!=rm' | paste -sd' ' -)"
 aws ec2 modify-instance-attribute \
   --instance-id "$INSTANCE_ID" \
   --groups $NEW_SGS
@@ -204,6 +204,7 @@ aws ec2 modify-instance-attribute \
 # 12 - Cleanup
 
 rm -rf "$WORKDIR"
+aws ec2 delete-security-group --group-id "$SG_TEMP_ID"
 
 # 13 - Done
 
