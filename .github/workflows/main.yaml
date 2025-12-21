@@ -13,8 +13,9 @@ jobs:
       - name: Check required secrets exist
         env:
           VARS_JSON: ${{ secrets.VARS_JSON }}
+          SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
         run: |
-          for s in VARS_JSON; do
+          for s in VARS_JSON SERVICE_ACCOUNT; do
             if [ -z "${!s}" ]; then
               echo "Error: Missing required secret: $s"
               exit 1
@@ -42,6 +43,16 @@ jobs:
             )
           ' <<<"$VARS" >/dev/null || { echo "Error: VARS_JSON schema invalid"; exit 1; }
           echo "VARS_JSON schema valid"
+      - name: Validate SERVICE_ACCOUNT schema
+        env:
+          SA: ${{ secrets.SERVICE_ACCOUNT }}
+        run: |
+          jq -e '
+            (.aws_access_key_id | type=="string") and
+            (.aws_secret_access_key | type=="string") and
+            (.aws_region | type=="string")
+          ' <<<"$SA" >/dev/null || { echo "Error: SERVICE_ACCOUNT schema invalid"; exit 1; }
+          echo "SERVICE_ACCOUNT schema valid"
 
   prepare-tfbackend:
     runs-on: ubuntu-latest
@@ -50,13 +61,13 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ fromJson(secrets.VARS_JSON).aws_access_key_id }}
-          aws-secret-access-key: ${{ fromJson(secrets.VARS_JSON).aws_secret_access_key }}
-          aws-region: ${{ fromJson(secrets.VARS_JSON).aws_region }}
+          aws-access-key-id: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_access_key_id }}
+          aws-secret-access-key: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_secret_access_key }}
+          aws-region: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_region }}
       - name: Creates / Checks state bucket
         env:
           BUCKET_NAME: ${{ fromJson(secrets.VARS_JSON).project_name }}-bucket-tfstate
-          AWS_REGION: ${{ fromJson(secrets.VARS_JSON).aws_region }}
+          AWS_REGION: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_region }}
         run: |
           set -euo pipefail
           if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
@@ -96,7 +107,7 @@ jobs:
         env:
           BUCKET_NAME: ${{ fromJson(secrets.VARS_JSON).project_name }}-bucket-tfstate
           TABLE_NAME: ${{ fromJson(secrets.VARS_JSON).project_name }}-table-tfstate
-          AWS_REGION: ${{ fromJson(secrets.VARS_JSON).aws_region }}
+          AWS_REGION: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_region }}
         run: |
           tee backend.tf > /dev/null <<EOF
           terraform {
@@ -270,9 +281,9 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ fromJson(secrets.VARS_JSON).aws_access_key_id }}
-          aws-secret-access-key: ${{ fromJson(secrets.VARS_JSON).aws_secret_access_key }}
-          aws-region: ${{ fromJson(secrets.VARS_JSON).aws_region }}
+          aws-access-key-id: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_access_key_id }}
+          aws-secret-access-key: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_secret_access_key }}
+          aws-region: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_region }}
       - name: Download tfbackend
         uses: actions/download-artifact@v4
         with:
@@ -344,9 +355,9 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ fromJson(secrets.VARS_JSON).aws_access_key_id }}
-          aws-secret-access-key: ${{ fromJson(secrets.VARS_JSON).aws_secret_access_key }}
-          aws-region: ${{ fromJson(secrets.VARS_JSON).aws_region }}
+          aws-access-key-id: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_access_key_id }}
+          aws-secret-access-key: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_secret_access_key }}
+          aws-region: ${{ fromJson(secrets.SERVICE_ACCOUNT).aws_region }}
       - name: Install Ansible
         run: sudo apt-get install -y ansible
       - name: Download tfplan
