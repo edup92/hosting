@@ -212,11 +212,15 @@ jobs:
             echo "Zipping ansible $name"
             (cd "$d" && zip -r "$GITHUB_WORKSPACE/$ARTIFACTS_ANSIBLE_DIR/$name.zip" .)
           done
+      - name: Create artifacts root zip
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          zip -r artifacts.zip "$ARTIFACTS_DIR"
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
-          path: ${{ env.ARTIFACTS_DIR }}
+          path: artifacts.zip
 
   tf-plan:
     runs-on: ubuntu-latest
