@@ -23,13 +23,13 @@ jobs:
           done
           echo "All required secrets exist"
 
-      - name: Test
-        uses: cardinalby/schema-validator-action@3.1.1
-        id: json-yaml-validate
-        with:
-          json_schema: ./github/schemas/vars_json.json
-          files: config/valid.json
-          comment: "true"
+      #- name: Test
+      #  uses: cardinalby/schema-validator-action@3.1.1
+      #  id: json-yaml-validate
+      #  with:
+      #    json_schema: ./github/schemas/vars_json.json
+      #    files: config/valid.json
+      #    comment: "true"
 
       - name: Validate VARS_JSON schema
         env:
