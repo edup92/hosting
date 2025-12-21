@@ -244,7 +244,6 @@ resource "null_resource" "null_ansible_install" {
   ]
   triggers = {
     instance_id   = aws_instance.instance_main.id
-    playbook_hash = filesha256(local.ansible_path)
   }
   provisioner "local-exec" {
     environment = {

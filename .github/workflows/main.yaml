@@ -256,9 +256,9 @@ jobs:
           path: |
             .terraform
             ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: ${{ runner.os }}-tf-${{ hashFiles('.terraform.lock.hcl') }}
+          key: ${{ runner.os }}-tfinit-${{ hashFiles('**/*.tf', '.terraform.lock.hcl') }}
           restore-keys: |
-            ${{ runner.os }}-tf-
+            ${{ runner.os }}-tfinit-
       - name: Terraform init
         run: terraform init -input=false
       - name: Terraform plan
@@ -351,9 +351,9 @@ jobs:
           path: |
             .terraform
             ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: ${{ runner.os }}-tf-${{ hashFiles('.terraform.lock.hcl') }}
+          key: ${{ runner.os }}-tfinit-${{ hashFiles('**/*.tf', '.terraform.lock.hcl') }}
           restore-keys: |
-            ${{ runner.os }}-tf-
+            ${{ runner.os }}-tfinit-
       - name: Terraform init
         run: terraform init -input=false
       - name: Terraform apply
