@@ -245,7 +245,6 @@ jobs:
     needs:
       - prepare-tfbackend
       - prepare-tfvars
-      - prepare-artifacts
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       TF_DIR: .
@@ -264,11 +263,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tfbackend
-          path: ${{ env.TF_DIR }}
-      - name: Download tfvars
-        uses: actions/download-artifact@v4
-        with:
-          name: tfvars
           path: ${{ env.TF_DIR }}
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
@@ -356,6 +350,15 @@ jobs:
         with:
           name: tfvars
           path: ${{ env.TF_DIR }}
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts
+          path: .
+      - name: Unzip artifacts.zip to workspace root and remove zip
+        run: |
+          unzip -o artifacts.zip -d "$GITHUB_WORKSPACE"
+          rm -f artifacts.zip
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
       - name: Cache terraform (modules + providers + plugin cache)
@@ -371,15 +374,6 @@ jobs:
       - name: Terraform init
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: artifacts
-          path: .
-      - name: Unzip artifacts.zip to workspace root and remove zip
-        run: |
-          unzip -o artifacts.zip -d "$GITHUB_WORKSPACE"
-          rm -f artifacts.zip
       - name: Set execute permissions for scripts
         run: |
           if [ -d "./scripts" ]; then
