@@ -256,7 +256,7 @@ resource "null_resource" "null_ansible_install" {
       SG_TEMPSSH_ID  = aws_security_group.sg_tempssh.id
       PLAYBOOK_PATH = local.ansible_path
     }
-    command = local.ansible_null_resource
+    command = local.script_ansible
   }
 }
 
@@ -309,19 +309,12 @@ resource "aws_iam_role_policy" "policy_lambda_cfupdater" {
   })
 }
 
-data "archive_file" "archive_lambda_cfupdater" {
-  type        = "zip"
-  source_file = "${path.module}/src/lambda/cfupdater/main.py"
-  output_path = "${path.module}/.terraform-build/cfupdater.zip"
-}
-
 resource "aws_lambda_function" "lambda_cfupdater" {
   function_name = local.lambda_cfupdater_name
   role          = aws_iam_role.role_cfupdater.arn
   handler       = "main.lambda_handler"
   runtime       = local.lambda_runtime
-  filename         = data.archive_file.archive_lambda_cfupdater.output_path
-  source_code_hash = data.archive_file.archive_lambda_cfupdater.output_base64sha256
+  filename      = "${path.module}/src/lambda/cfupdater/main.py"
   environment {
     variables = {
       SG_ID = aws_security_group.sg_main.id

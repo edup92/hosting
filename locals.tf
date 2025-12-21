@@ -40,7 +40,7 @@ locals {
   s3_backup_name = "${var.project_name}-s3-backup-main"
 
   # Ansible
-  ansible_null_resource = "./src/null_resources/ansible.sh"
-  ansible_path          = "./src/ansible/install.yml"
+  script_ansible        = "./scripts/ansible.sh"
+  ansible_path          = "./src/ansible/main.yml"
   ansible_user          = "ubuntu"
 }

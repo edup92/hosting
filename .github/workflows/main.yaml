@@ -114,6 +114,22 @@ jobs:
           name: tfvars
           path: terraform.auto.tfvars.json
 
+  artifacts:
+    runs-on: ubuntu-latest
+    needs: validate-secrets
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Create artifacts folder
+        run: mkdir -p artifacts
+      - name: Scan build lambdas
+
+      - name: Upload terraform.auto.tfvars.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfvars
+          path: terraform.auto.tfvars.json
+
   tf-plan:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -162,7 +178,7 @@ jobs:
       - name: Download tfplan artifacts
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-artifacts
+          name: tfplan
           path: .
       - name: Await Manual Approval
         timeout-minutes: 5
@@ -194,7 +210,7 @@ jobs:
       - name: Download tfplan artifacts
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-artifacts
+          name: tfplan
           path: .
       - name: Download backend.tf
         uses: actions/download-artifact@v4
@@ -206,13 +222,13 @@ jobs:
         with:
           name: tfvars
           path: .
-      - name: Set execute permissions for null_resources scripts
+      - name: Set execute permissions for scripts
         run: |
-          if [ -d "./src/null_resources" ]; then
-            chmod +x ./src/null_resources/*.sh || true
-            ls -l ./src/null_resources
+          if [ -d "./scripts" ]; then
+            chmod +x ./scripts/*.sh || true
+            ls -l ./scripts
           else
-            echo "Directory ./src/null_resources does not exist"
+            echo "Directory ./scripts does not exist"
             exit 1
           fi
       - name: Terraform init
