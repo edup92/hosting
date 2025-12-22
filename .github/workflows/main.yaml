@@ -107,11 +107,11 @@ jobs:
     needs: validate-secrets
     env:
       BUILD_DIR: build
-      BUILD_LAMBDA_DIR: build/lambda
-      BUILD_ANSIBLE_DIR: build/ansible
       ARTIFACTS_DIR: artifacts
-      ARTIFACTS_LAMBDA_DIR: artifacts/lambda
-      ARTIFACTS_ANSIBLE_DIR: artifacts/ansible
+      LAMBDA_DIR: lambda
+      PYTHON_DIR: python
+      NODEJS_DIR: nodejs
+      ANSIBLE_DIR: ansible
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -124,30 +124,26 @@ jobs:
         with:
           node-version: "20"
       - name: Cache python lambda build
-        id: cache-python
+        id: cache-artifacts-python
         uses: actions/cache@v4
         with:
-          path: ${{ env.BUILD_LAMBDA_DIR }}/**/packages
-          key: ${{ runner.os }}-lambda-py-${{ hashFiles('build/lambda/**') }}
+          path: ${{ env.BUILD_DIR }}/${{ env.LAMBDA_DIR }}/$PYTHON_DIR/**/packages
+          key: ${{ runner.os }}-lambda-python-${{ hashFiles('build/lambda/**') }}
           restore-keys: |
-            ${{ runner.os }}-lambda-py-
-      - name: Cache node lambda build
-        id: cache-node
+            ${{ runner.os }}-lambda-python-artifacts-
+      - name: Cache nodejs lambda build
+        id: cache-artifacts-nodejs
         uses: actions/cache@v4
         with:
-          path: ${{ env.BUILD_LAMBDA_DIR }}/**/node_modules
+          path: ${{ env.BUILD_DIR }}/${{ env.LAMBDA_DIR }}/$NODEJS_DIR/**/node_modules
           key: ${{ runner.os }}-lambda-node-${{ hashFiles('build/lambda/**') }}
           restore-keys: |
-            ${{ runner.os }}-lambda-node-
-      - name: Create artifacts folders
-        run: |
-          mkdir -p "$ARTIFACTS_LAMBDA_DIR"
-          mkdir -p "$ARTIFACTS_ANSIBLE_DIR"
-      - name: Build python lambdas (cache-aware)
-        if: steps.cache-python.outputs.cache-hit != 'true'
+            ${{ runner.os }}-lambda-node-artifacts-
+      - name: Build lambda python
+        if: steps.cache-artifacts-python.outputs.cache-hit != 'true'
         run: |
           found=0
-          for d in "$BUILD_LAMBDA_DIR"/*; do
+          for d in "$BUILD_DIR/$LAMBDA_DIR/$PYTHON_DIR"/*; do
             if [[ -f "$d/requirements.txt" ]]; then
               found=1
               echo "Building python lambda $(basename "$d")"
@@ -156,13 +152,13 @@ jobs:
             fi
           done
           if [[ "$found" -eq 0 ]]; then
-            echo "No requirements.txt found in $BUILD_LAMBDA_DIR/*; skipping python build."
+            echo "No requirements.txt found in $BUILD_DIR/$LAMBDA_DIR/$PYTHON_DIR/*; skipping python build."
           fi
-      - name: Build node lambdas (cache-aware)
-        if: steps.cache-node.outputs.cache-hit != 'true'
+      - name: Build lambda nodejs
+        if: steps.cache-artifacts-nodejs.outputs.cache-hit != 'true'
         run: |
           found=0
-          for d in "$BUILD_LAMBDA_DIR"/*; do
+          for d in "$BUILD_DIR/$LAMBDA_DIR/$NODEJS_DIR"/*; do
             if [[ -f "$d/package.json" ]]; then
               found=1
               echo "Building node lambda $(basename "$d")"
@@ -170,56 +166,13 @@ jobs:
             fi
           done
           if [[ "$found" -eq 0 ]]; then
-            echo "No package.json found in $BUILD_LAMBDA_DIR/*; skipping node build."
+            echo "No package.json found in $BUILD_DIR/$LAMBDA_DIR/$NODEJS_DIR/*; skipping node build."
           fi
-      - name: Cache lambda zip artifacts
-        id: cache-lambda-zips
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.ARTIFACTS_LAMBDA_DIR }}
-          key: ${{ runner.os }}-lambda-zips-${{ hashFiles('build/lambda/**') }}
-          restore-keys: |
-            ${{ runner.os }}-lambda-zips-
-      - name: Cache ansible zip artifacts
-        id: cache-ansible-zips
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.ARTIFACTS_ANSIBLE_DIR }}
-          key: ${{ runner.os }}-ansible-zips-${{ hashFiles('build/ansible/**') }}
-          restore-keys: |
-            ${{ runner.os }}-ansible-zips-
-      - name: Zip lambdas
-        if: steps.cache-lambda-zips.outputs.cache-hit != 'true'
-        run: |
-          for d in "$BUILD_LAMBDA_DIR"/*; do
-            name="$(basename "$d")"
-            echo "Zipping lambda $name"
-            (cd "$d" && zip -r "$GITHUB_WORKSPACE/$ARTIFACTS_LAMBDA_DIR/$name.zip" .)
-          done
-      - name: Zip ansible
-        if: steps.cache-ansible-zips.outputs.cache-hit != 'true'
-        run: |
-          for d in "$BUILD_ANSIBLE_DIR"/*; do
-            name="$(basename "$d")"
-            echo "Zipping ansible $name"
-            (cd "$d" && zip -r "$GITHUB_WORKSPACE/$ARTIFACTS_ANSIBLE_DIR/$name.zip" .)
-          done
-      - name: Cache artifacts.zip
-        id: cache-artifacts-zip
-        uses: actions/cache@v4
-        with:
-          path: artifacts.zip
-          key: ${{ runner.os }}-artifacts-zip-${{ hashFiles('build/**') }}
-          restore-keys: |
-            ${{ runner.os }}-artifacts-zip-
-      - name: Zip artifacts root folder
-        if: steps.cache-artifacts-zip.outputs.cache-hit != 'true'
-        run: cd "$GITHUB_WORKSPACE" && zip -r artifacts.zip artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
-          path: artifacts.zip
+          path: build
 
   tf-plan:
     runs-on: ubuntu-latest
@@ -252,15 +205,15 @@ jobs:
           path: ""
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-      - name: Cache Terraform providers (plugin cache)
-        id: cache-terraform
+      - name: Cache Terraform providers
+        id: tfinit-providers
         uses: actions/cache@v4
         with:
           path: ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          key: ${{ runner.os }}-tfinit-providers-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
             ${{ runner.os }}-tfproviders-
-      - name: Terraform init (readonly lockfile)
+      - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform plan
         run: terraform plan -input=false -no-color -out=tfplan -var-file="tfvars.json"
@@ -303,6 +256,8 @@ jobs:
       - prepare-artifacts
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
+      ARTIFACTS_DIR: "./artifacts"
+      SCRIPTS_DIR: "./scripts"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -316,6 +271,19 @@ jobs:
           aws-region: ${{ fromJson(secrets.SA_JSON).aws_region }}
       - name: Install Ansible
         run: sudo apt-get update && sudo apt-get install -y ansible
+      - name: Create tf providers dir
+        run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
+      - name: Create artifacts dir
+        run: mkdir -p "${ARTIFACTS_DIR}"
+      - name: Set execute permissions for scripts
+        run: |
+          if [ -d $SCRIPTS_DIR ]; then
+            chmod +x $SCRIPTS_DIR/*.sh || true
+            ls -l $SCRIPTS_DIR
+          else
+            echo "Directory $SCRIPTS_DIR does not exist"
+            exit 1
+          fi
       - name: Download tfplan
         uses: actions/download-artifact@v4
         with:
@@ -332,34 +300,19 @@ jobs:
           name: tfvars
           path: ""
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: artifacts
-          path: .
-      - name: Unzip artifacts.zip to workspace root and remove zip
-        run: |
-          unzip -o artifacts.zip -d "$GITHUB_WORKSPACE"
-          rm -f artifacts.zip
-      - name: Set execute permissions for scripts
-        run: |
-          if [ -d "./scripts" ]; then
-            chmod +x ./scripts/*.sh || true
-            ls -l ./scripts
-          else
-            echo "Directory ./scripts does not exist"
-            exit 1
-          fi
-      - name: Create plugin cache dir
-        run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
+          path: ${{ env.ARTIFACTS_DIR }}
       - name: Cache Terraform providers (plugin cache)
-        id: cache-terraform
+        id: tfinit-providers
         uses: actions/cache@v4
         with:
           path: ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          key: ${{ runner.os }}-tfinit-providers-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
-            ${{ runner.os }}-tfproviders-
-      - name: Terraform init (readonly lockfile)
+            ${{ runner.os }}-tfinit-providers-
+      - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform apply
         run: terraform apply -auto-approve tfplan -var-file="tfvars.json"
