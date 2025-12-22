@@ -142,32 +142,28 @@ jobs:
       - name: Build lambda python
         if: steps.cache-artifacts-python.outputs.cache-hit != 'true'
         run: |
-          found=0
           for d in "$BUILD_DIR/$LAMBDA_DIR/$PYTHON_DIR"/*; do
             if [[ -f "$d/requirements.txt" ]]; then
-              found=1
               echo "Building python lambda $(basename "$d")"
               mkdir -p "$d/packages"
               python -m pip install -r "$d/requirements.txt" -t "$d/packages"
+              echo "Built python lambda $(basename "$d")"
+            else
+              echo "Skipped python lambda $(basename "$d") (no requirements.txt)"
             fi
           done
-          if [[ "$found" -eq 0 ]]; then
-            echo "No requirements.txt found in $BUILD_DIR/$LAMBDA_DIR/$PYTHON_DIR/*; skipping python build."
-          fi
       - name: Build lambda nodejs
         if: steps.cache-artifacts-nodejs.outputs.cache-hit != 'true'
         run: |
-          found=0
           for d in "$BUILD_DIR/$LAMBDA_DIR/$NODEJS_DIR"/*; do
             if [[ -f "$d/package.json" ]]; then
-              found=1
               echo "Building node lambda $(basename "$d")"
               (cd "$d" && npm ci --omit=dev)
+              echo "Built node lambda $(basename "$d")"
+            else
+              echo "Skipped node lambda $(basename "$d") (no package.json)"
             fi
           done
-          if [[ "$found" -eq 0 ]]; then
-            echo "No package.json found in $BUILD_DIR/$LAMBDA_DIR/$NODEJS_DIR/*; skipping node build."
-          fi
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
