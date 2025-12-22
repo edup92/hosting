@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "required": [
     "cf_token",
@@ -12,22 +12,28 @@
   ],
   "properties": {
     "cf_token": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "uptimerobot_token": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "admin_ip": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "project_name": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "instance_type": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "instance_disk_size": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "sites": {
       "type": "object",
@@ -36,10 +42,12 @@
         "required": ["domain", "monitor_keyworkd"],
         "properties": {
           "domain": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "monitor_keyworkd": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           }
         },
         "additionalProperties": false
