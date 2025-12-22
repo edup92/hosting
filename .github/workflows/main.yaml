@@ -11,14 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VARS_JSON: ${{ secrets.VARS_JSON }}
-      VARS_JSON_FILE: ${{ secrets.VARS_JSON }}
       SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+      VARS_FILE: "VARS.json"
+      SERVICE_ACCOUNT_FILE: "SERVICE_ACCOUNT.json"
       VARS_SCHEMA: "./github/schemas/vars_schema.json"
-      SERVICE_ACCOUNT_SCHEMA: ${{ secrets.SERVICE_ACCOUNT }}
+      SERVICE_ACCOUNT_SCHEMA: "./github/schemas/vars_schema.json"
     steps:
       - name: Check required secrets exist
         run: |
-          for s in VARS_JSON SERVICE_ACCOUNT; do
+          for s in VARS_JSON SERVICE_ACCOUNT_JSON; do
             if [ -z "${!s}" ]; then
               echo "Error: Missing required secret: $s"
               exit 1
@@ -26,13 +27,22 @@ jobs:
           done
           echo "All required secrets exist"
       - name: Save VARS_JSON as file
-        run: printf '%s' "$VARS_JSON" > VARS_JSON.json
+        run: printf '%s' "$VARS_JSON" > $VARS_FILE
+      - name: Save SERVICE_ACCOUNT_JSON as file
+        run: printf '%s' "$SERVICE_ACCOUNT_JSON" > $SERVICE_ACCOUNT_FILE
       - name: Validate VARS_JSON
         uses: cardinalby/schema-validator-action@3.1.1
         id: json-yaml-validate
         with:
-          json_schema: VARS_SCHEMA
-          files:  ${{ env.VARS_JSON_FILE }}
+          json_schema: ${{ env.VARS_SCHEMA }}
+          files:  ${{ env.VARS_FILE }}
+          comment: "true"
+      - name: Validate SERVICE_ACCOUNT_JSON
+        uses: cardinalby/schema-validator-action@3.1.1
+        id: json-yaml-validate
+        with:
+          json_schema: ${{ env.SERVICE_ACCOUNT_SCHEMA }}
+          files:  ${{ env.SERVICE_ACCOUNT_FILE }}
           comment: "true"
       - name: Validate VARS_JSON schema
         run: |
