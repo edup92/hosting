@@ -14,8 +14,8 @@ jobs:
       SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
       VARS_FILE: "VARS.json"
       SERVICE_ACCOUNT_FILE: "SERVICE_ACCOUNT.json"
-      VARS_SCHEMA: "./github/schemas/vars_schema.json"
-      SERVICE_ACCOUNT_SCHEMA: "./github/schemas/vars_schema.json"
+      VARS_SCHEMA: "./.github/schemas/vars_schema.json"
+      SERVICE_ACCOUNT_SCHEMA: "./.github/schemas/vars_schema.json"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
