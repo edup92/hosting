@@ -17,6 +17,8 @@ jobs:
       VARS_SCHEMA: "./github/schemas/vars_schema.json"
       SERVICE_ACCOUNT_SCHEMA: "./github/schemas/vars_schema.json"
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
       - name: Check required secrets exist
         run: |
           for s in VARS_JSON SERVICE_ACCOUNT_JSON; do
@@ -148,7 +150,7 @@ jobs:
       ARTIFACTS_ANSIBLE_DIR: artifacts/ansible
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -265,7 +267,7 @@ jobs:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v3
       - name: Configure AWS Credentials
@@ -339,7 +341,7 @@ jobs:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v3
       - name: Configure AWS Credentials
