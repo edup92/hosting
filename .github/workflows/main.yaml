@@ -32,14 +32,12 @@ jobs:
         run: printf '%s' "$SERVICE_ACCOUNT_JSON" > $SERVICE_ACCOUNT_FILE
       - name: Validate VARS_JSON
         uses: cardinalby/schema-validator-action@3.1.1
-        id: json-yaml-validate
         with:
           json_schema: ${{ env.VARS_SCHEMA }}
           files:  ${{ env.VARS_FILE }}
           comment: "true"
       - name: Validate SERVICE_ACCOUNT_JSON
         uses: cardinalby/schema-validator-action@3.1.1
-        id: json-yaml-validate
         with:
           json_schema: ${{ env.SERVICE_ACCOUNT_SCHEMA }}
           files:  ${{ env.SERVICE_ACCOUNT_FILE }}
