@@ -1,0 +1,31 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.tfplan
+crash.log
+crash.*.log
+
+# Terraform CLI config (credentials)
+.terraformrc
+terraform.rc
+
+# Generated files
+*.lock.hcl.bak
+
+# Terragrunt
+**/.terragrunt-cache/*
+terragrunt-debug.tfvars.json
+
+# Plan output / logs
+plan.out
+*.log
+
+# Sensitive env files
+.env
+.env.*
+*.pem
+*.key
+*.p12
