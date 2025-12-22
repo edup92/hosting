@@ -13,7 +13,7 @@ jobs:
       VARS_JSON: ${{ secrets.VARS_JSON }}
       SA_JSON: ${{ secrets.SA_JSON }}
       VARS_FILE: "vars.json"
-      SERVICE_ACCOUNT_FILE: "sa.json"
+      SA_FILE: "sa.json"
       SCHEMA_DIR: "./.github/schemas"
     steps:
       - name: Checkout repo
@@ -21,7 +21,7 @@ jobs:
       - name: Save VARS_JSON as file
         run: printf '%s' "$VARS_JSON" > $VARS_FILE
       - name: Save SA_JSON as file
-        run: printf '%s' "$SA_JSON" > $SERVICE_ACCOUNT_FILE
+        run: printf '%s' "$SA_JSON" > $SA_FILE
       - name: Validate VARS_JSON
         uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
@@ -31,8 +31,8 @@ jobs:
       - name: Validate SA_JSON
         uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SA_SCHEMA }}"
-          files:  ${{ env.SERVICE_ACCOUNT_FILE }}
+          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SA_FILE }}"
+          files:  ${{ env.SA_FILE }}
           comment: "true"
 
   prepare-tfbackend:
