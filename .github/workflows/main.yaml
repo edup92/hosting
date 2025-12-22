@@ -11,7 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VARS_JSON: ${{ secrets.VARS_JSON }}
-      SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
+      VARS_JSON_FILE: ${{ secrets.VARS_JSON }}
+      SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+      VARS_SCHEMA: "./github/schemas/vars_schema.json"
+      SERVICE_ACCOUNT_SCHEMA: ${{ secrets.SERVICE_ACCOUNT }}
     steps:
       - name: Check required secrets exist
         run: |
@@ -28,8 +31,8 @@ jobs:
         uses: cardinalby/schema-validator-action@3.1.1
         id: json-yaml-validate
         with:
-          json_schema: ./github/schemas/vars_json.json
-          files: config/valid.json
+          json_schema: VARS_SCHEMA
+          files:  ${{ env.VARS_JSON_FILE }}
           comment: "true"
       - name: Validate VARS_JSON schema
         run: |
@@ -45,16 +48,16 @@ jobs:
               (.sites | length) == 0 or
               (all(.sites[]; (type=="object") and (.domain | type=="string") and (.monitor_keyworkd | type=="string")))
             )
-          ' <<<"$VARS" >/dev/null || { echo "Error: VARS_JSON schema invalid"; exit 1; }
+          ' <<<"$VARS_JSON" >/dev/null || { echo "Error: VARS_JSON schema invalid"; exit 1; }
           echo "VARS_JSON schema valid"
-      - name: Validate SERVICE_ACCOUNT schema
+      - name: Validate SERVICE_ACCOUNT_JSON schema
         run: |
           jq -e '
             (.aws_access_key_id | type=="string") and
             (.aws_secret_access_key | type=="string") and
             (.aws_region | type=="string")
-          ' <<<"$SERVICE_ACCOUNT" >/dev/null || { echo "Error: SERVICE_ACCOUNT schema invalid"; exit 1; }
-          echo "SERVICE_ACCOUNT schema valid"
+          ' <<<"$SERVICE_ACCOUNT_JSON" >/dev/null || { echo "Error: SERVICE_ACCOUNT_JSON schema invalid"; exit 1; }
+          echo "SERVICE_ACCOUNT_JSON schema valid"
 
   prepare-tfbackend:
     runs-on: ubuntu-latest

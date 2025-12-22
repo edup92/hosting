@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "cf_token",
+    "uptimerobot_token",
+    "admin_ip",
+    "project_name",
+    "instance_type",
+    "instance_disk_size",
+    "sites"
+  ],
+  "properties": {
+    "cf_token": {
+      "type": "string"
+    },
+    "uptimerobot_token": {
+      "type": "string"
+    },
+    "admin_ip": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string"
+    },
+    "instance_type": {
+      "type": "string"
+    },
+    "instance_disk_size": {
+      "type": "string"
+    },
+    "sites": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["domain", "monitor_keyworkd"],
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "monitor_keyworkd": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
