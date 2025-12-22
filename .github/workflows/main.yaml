@@ -9,11 +9,11 @@ permissions:
 jobs:
   validate-secrets:
     runs-on: ubuntu-latest
+    env:
+      VARS_JSON: ${{ secrets.VARS_JSON }}
+      SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
     steps:
       - name: Check required secrets exist
-        env:
-          VARS_JSON: ${{ secrets.VARS_JSON }}
-          SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
         run: |
           for s in VARS_JSON SERVICE_ACCOUNT; do
             if [ -z "${!s}" ]; then
@@ -22,18 +22,16 @@ jobs:
             fi
           done
           echo "All required secrets exist"
-
-      #- name: Test
-      #  uses: cardinalby/schema-validator-action@3.1.1
-      #  id: json-yaml-validate
-      #  with:
-      #    json_schema: ./github/schemas/vars_json.json
-      #    files: config/valid.json
-      #    comment: "true"
-
+      - name: Save VARS_JSON as file
+        run: printf '%s' "$VARS_JSON" > VARS_JSON.json
+      - name: Validate VARS_JSON
+        uses: cardinalby/schema-validator-action@3.1.1
+        id: json-yaml-validate
+        with:
+          json_schema: ./github/schemas/vars_json.json
+          files: config/valid.json
+          comment: "true"
       - name: Validate VARS_JSON schema
-        env:
-          VARS: ${{ secrets.VARS_JSON }}
         run: |
           jq -e '
             (.cf_token              | type=="string") and
@@ -50,14 +48,12 @@ jobs:
           ' <<<"$VARS" >/dev/null || { echo "Error: VARS_JSON schema invalid"; exit 1; }
           echo "VARS_JSON schema valid"
       - name: Validate SERVICE_ACCOUNT schema
-        env:
-          SA: ${{ secrets.SERVICE_ACCOUNT }}
         run: |
           jq -e '
             (.aws_access_key_id | type=="string") and
             (.aws_secret_access_key | type=="string") and
             (.aws_region | type=="string")
-          ' <<<"$SA" >/dev/null || { echo "Error: SERVICE_ACCOUNT schema invalid"; exit 1; }
+          ' <<<"$SERVICE_ACCOUNT" >/dev/null || { echo "Error: SERVICE_ACCOUNT schema invalid"; exit 1; }
           echo "SERVICE_ACCOUNT schema valid"
 
   prepare-tfbackend:
