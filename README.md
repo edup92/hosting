@@ -1,33 +1,6 @@
 # hosting-temp
 
 # Run bootstrap.sh on Cloudshell
-# Paste SERVICE_ACCOUNT as secret in Github Actions. Required JSON:
-
-{
-  "aws_access_key_id": "",
-  "aws_secret_access_key": "",
-  "aws_region": "eu-south-2"
-}
-
-# Paste VARS_JSON as secret in Github Actions. Required JSON:
-
-{
-  "aws_access_key_id": "",
-  "aws_secret_access_key": "",
-  "aws_region": "eu-south-2",
-  "cf_token": "",
-  "uptimerobot_token": "",
-  "admin_ip": "X.X.X.X/32",
-  "project_name": "",
-  "instance_type": "t4g.small",
-  "instance_disk_size": "25",
-  "sites":  {
-    "site1": {
-        "domain": "domain.tld",
-        "monitor_keyworkd": ""
-    }
-    ...
-  }
-}
-
+# Paste VARS_JSON as secret in Github Actions. Required JSON related to ./.github/schemas/vars_schema.json
+# Create SERVICE_ACCOUNT_JSON as secret in Github Actions. Required JSON related to ./.github/schemas/service_account.json
 # Run playbook
