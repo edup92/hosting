@@ -12,22 +12,12 @@ jobs:
     env:
       VARS_JSON: ${{ secrets.VARS_JSON }}
       SA_JSON: ${{ secrets.SA_JSON }}
-      VARS_FILE: "VARS.json"
-      SERVICE_ACCOUNT_FILE: "SA.json"
-      VARS_SCHEMA: "./.github/schemas/vars.json"
-      SA_SCHEMA: "./.github/schemas/sa.json"
+      VARS_FILE: "vars.json"
+      SERVICE_ACCOUNT_FILE: "sa.json"
+      SCHEMA_DIR: "./.github/schemas"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
-      - name: Check required secrets exist
-        run: |
-          for s in VARS_JSON SA_JSON; do
-            if [ -z "${!s}" ]; then
-              echo "Error: Missing required secret: $s"
-              exit 1
-            fi
-          done
-          echo "All required secrets exist"
       - name: Save VARS_JSON as file
         run: printf '%s' "$VARS_JSON" > $VARS_FILE
       - name: Save SA_JSON as file
@@ -35,19 +25,22 @@ jobs:
       - name: Validate VARS_JSON
         uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
-          json_schema: ${{ env.VARS_SCHEMA }}
+          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.VARS_FILE }}"
           files:  ${{ env.VARS_FILE }}
           comment: "true"
       - name: Validate SA_JSON
         uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
-          json_schema: ${{ env.SA_SCHEMA }}
+          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SA_SCHEMA }}"
           files:  ${{ env.SERVICE_ACCOUNT_FILE }}
           comment: "true"
 
   prepare-tfbackend:
     runs-on: ubuntu-latest
     needs: validate-secrets
+    env:
+      BUCKET_NAME: ${{ fromJson(secrets.VARS_JSON).project_name }}-bucket-tfstate
+      AWS_REGION: ${{ fromJson(secrets.SA_JSON).aws_region }}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -56,9 +49,6 @@ jobs:
           aws-secret-access-key: ${{ fromJson(secrets.SA_JSON).aws_secret_access_key }}
           aws-region: ${{ fromJson(secrets.SA_JSON).aws_region }}
       - name: Creates / Checks state bucket
-        env:
-          BUCKET_NAME: ${{ fromJson(secrets.VARS_JSON).project_name }}-bucket-tfstate
-          AWS_REGION: ${{ fromJson(secrets.SA_JSON).aws_region }}
         run: |
           set -euo pipefail
           if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
@@ -76,9 +66,6 @@ jobs:
             aws s3api put-bucket-encryption --bucket "$BUCKET_NAME" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
           fi
       - name: Create TF Backend (backend.tf)
-        env:
-          BUCKET_NAME: ${{ fromJson(secrets.VARS_JSON).project_name }}-bucket-tfstate
-          AWS_REGION: ${{ fromJson(secrets.SA_JSON).aws_region }}
         run: |
           tee backend.tf > /dev/null <<EOF
           terraform {
@@ -102,18 +89,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: validate-secrets
     steps:
-      - name: Generate terraform.auto.tfvars.json
+      - name: Generate tfvars.json
         env:
           VARS: ${{ secrets.VARS_JSON }}
         run: |
-          echo "Storing keys into terraform.auto.tfvars.json:"
+          echo "Storing keys into tfvars.json:"
           echo "$VARS" | jq -r 'keys[]' | sed "s/^/ - /"
-          printf '%s\n' "$VARS" > terraform.auto.tfvars.json
-      - name: Upload terraform.auto.tfvars.json
+          printf '%s\n' "$VARS" > tfvars.json
+      - name: Upload tfvars.json
         uses: actions/upload-artifact@v4
         with:
           name: tfvars
-          path: terraform.auto.tfvars.json
+          path: tfvars.json
 
   prepare-artifacts:
     runs-on: ubuntu-latest
@@ -276,7 +263,7 @@ jobs:
       - name: Terraform init (readonly lockfile)
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform plan
-        run: terraform plan -input=false -no-color -out=tfplan
+        run: terraform plan -input=false -no-color -out=tfplan -var-file="tfvars.json"
       - name: Generate visual plan
         run: terraform show -no-color tfplan > tfplan_visual
       - name: Upload tfplan_visual
@@ -375,4 +362,4 @@ jobs:
       - name: Terraform init (readonly lockfile)
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve tfplan -var-file="tfvars.json"
