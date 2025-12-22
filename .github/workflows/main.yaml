@@ -31,13 +31,13 @@ jobs:
       - name: Save SERVICE_ACCOUNT_JSON as file
         run: printf '%s' "$SERVICE_ACCOUNT_JSON" > $SERVICE_ACCOUNT_FILE
       - name: Validate VARS_JSON
-        uses: cardinalby/schema-validator-action@3.1.1
+        uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
           json_schema: ${{ env.VARS_SCHEMA }}
           files:  ${{ env.VARS_FILE }}
           comment: "true"
       - name: Validate SERVICE_ACCOUNT_JSON
-        uses: cardinalby/schema-validator-action@3.1.1
+        uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
           json_schema: ${{ env.SERVICE_ACCOUNT_SCHEMA }}
           files:  ${{ env.SERVICE_ACCOUNT_FILE }}
