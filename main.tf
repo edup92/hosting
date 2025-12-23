@@ -390,18 +390,6 @@ locals {
   }
 }
 
-resource "uptimerobot_monitor" "uptimerobot_main" {
-  for_each = local.sites_normalized
-
-  name              = each.value.domain
-  type              = "KEYWORD"
-  url               = "https://${each.value.domain}"
-  keyword_type      = "ALERT_NOT_EXISTS"
-  keyword_case_type = "CaseSensitive"
-
-  # fuerza a que el valor sea un string “conocido”
-  keyword_value = tostring(each.value.monitor_keyword)
-
-  interval = 15
+output "sites_debug_keywords" {
+  value = { for k, v in local.sites_normalized : k => v.monitor_keyword }
 }
-
