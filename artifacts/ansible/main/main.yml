@@ -85,3 +85,24 @@
             --siteUserPassword={{ lookup('ansible.builtin.password', '/dev/null length=14 chars=ascii_letters,digits') }}
           loop: "{{ sites | dict2items }}"
           changed_when: true
+        - name: Add databases (clpctl)
+          command: >
+            clpctl db:add
+            --domainName={{ item.value.domain }}
+            --databaseName={{ (item.value.domain | split('.'))[0] }}
+            --databaseUserName={{ (item.value.domain | split('.'))[0] }}
+            --databaseUserPassword={{ db_pass }}
+          loop: "{{ sites | dict2items }}"
+          loop_control:
+            label: "{{ item.value.domain }}"
+          vars:
+            db_pass: "{{ lookup('ansible.builtin.password', '/dev/null length=14 chars=ascii_letters,digits') }}"
+          register: db_add
+          changed_when: true
+        - name: Show generated DB passwords (per domain)
+          debug:
+            msg: "Domain={{ item.item.value.domain }} DBUser={{ (item.item.value.domain | split('.'))[0] }} DBPassword={{ item.item.vars.db_pass | default('UNKNOWN') }}"
+          loop: "{{ db_add.results }}"
+          loop_control:
+            label: "{{ item.item.value.domain }}"
+          no_log: false
