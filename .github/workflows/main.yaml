@@ -8,7 +8,7 @@ permissions:
 
 jobs:
 
-  validate-aws-credentials:
+  set-aws-credentials:
     runs-on: ubuntu-latest
     env:
       SA_JSON: ${{ secrets.SA_JSON }}
@@ -230,7 +230,7 @@ jobs:
   generate-tfbackend:
     runs-on: ubuntu-latest
     needs:
-      - validate-aws-credentials
+      - set-aws-credentials
       - generate-secrets
       - generate-vars
     env:
@@ -284,11 +284,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs:
+      - set-aws-credentials
       - generate-tfbackend
       - generate-vars
       - generate-secrets
+      - generate-modules
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
+      MODULES_DIR: ./modules
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -315,6 +318,12 @@ jobs:
         with:
           name: tf_secrets
           path: ""
+      - name: Download modules
+        uses: actions/download-artifact@v4
+        with:
+          name: modules
+          path: ${{ env.MODULES_DIR }}
+          if-no-files-found: error
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
       - name: Cache Terraform providers
