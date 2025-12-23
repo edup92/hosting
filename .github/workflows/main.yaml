@@ -54,49 +54,95 @@ jobs:
             --query "AttachedPolicies[?PolicyArn=='${ARN_ADMINISTRATOR}'] | length(@)" \
             --output text)"
           if [[ "$COUNT" = "1" ]]; then
-            echo "OK: user '${ARN_USER##*/}' has AdministratorAccess attached"
+            echo "OK: user has AdministratorAccess attached"
           else
-            echo "ERROR: user '${ARN_USER##*/}' does NOT have AdministratorAccess attached"
+            echo "ERROR: user does NOT have AdministratorAccess attached"
             exit 1
           fi
 
-  validate-secrets:
+  generate-vars:
     runs-on: ubuntu-latest
     env:
       VARS_JSON: ${{ vars.VARS_JSON }}
-      SECRETS_JSON: ${{ secrets.SECRETS_JSON }}
-      MODULES_JSON: ${{ vars.MODULES_JSON }}
       VARS_FILE: "vars.json"
-      SECRETS_FILE: "secrets.json"
-      MODULES_FILE: "modules.json"
       SCHEMA_DIR: "./.github/schemas"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
       - name: Save VARS_JSON as file
         run: printf '%s' "$VARS_JSON" > $VARS_FILE
-      - name: Save SECRETS_JSON as file
-        run: printf '%s' "$SECRETS_JSON" > $SECRETS_FILE
-      - name: Save MODULES_JSON as file
-        run: printf '%s' "$MODULES_JSON" > $MODULES_FILE
       - name: Validate VARS_JSON
         uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
           json_schema: "${{ env.SCHEMA_DIR }}/${{ env.VARS_FILE }}"
           files:  ${{ env.VARS_FILE }}
           comment: "true"
+      - name: Generate tf_vars.json
+        run: |
+          echo "Storing keys into tf_vars.json:"
+          echo "$VARS" | jq -r 'keys[]' | sed "s/^/ - /"
+          printf '%s\n' "$VARS" > tf_vars.json
+      - name: Upload tf_vars.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: tf_vars
+          path: tf_vars.json
+
+  generate-secrets:
+    runs-on: ubuntu-latest
+    env:
+      SECRETS_JSON: ${{ secrets.SECRETS_JSON }}
+      SECRETS_FILE: "secrets.json"
+      SCHEMA_DIR: "./.github/schemas"
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+      - name: Save SECRETS_JSON as file
+        run: printf '%s' "$SECRETS_JSON" > $SECRETS_FILE
       - name: Validate SECRETS_JSON
         uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
           json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SECRETS_FILE }}"
           files:  ${{ env.SECRETS_FILE }}
           comment: "true"
+      - name: Generate tf_secrets.json
+        run: |
+          echo "Storing keys into tf_secrets.json:"
+          echo "$VARS" | jq -r 'keys[]' | sed "s/^/ - /"
+          printf '%s\n' "$VARS" > tf_secrets.json
+      - name: Upload tf_secrets.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: tf_secrets
+          path: tf_secrets.json
+
+  generate-modules:
+    runs-on: ubuntu-latest
+    env:
+      SECRETS_JSON: ${{ vars.MODULES_JSON }}
+      SECRETS_FILE: "modules.json"
+      SCHEMA_DIR: "./.github/schemas"
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+      - name: Save MODULES_JSON as file
+        run: printf '%s' "$MODULES_JSON" > $MODULES_FILE
       - name: Validate MODULES_SA
         uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
           json_schema: "${{ env.SCHEMA_DIR }}/${{ env.MODULES_FILE }}"
           files:  ${{ env.MODULES_FILE }}
           comment: "true"
+      - name: Generate tf_modules.json
+        run: |
+          echo "Storing keys into tf_modules.json:"
+          echo "$VARS" | jq -r 'keys[]' | sed "s/^/ - /"
+          printf '%s\n' "$VARS" > tf_modules.json
+      - name: Upload tf_modules.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: tf_modules
+          path: tf_modules.json
 
   get-modules-list:
     runs-on: ubuntu-latest
