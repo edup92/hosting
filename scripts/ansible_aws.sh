@@ -13,6 +13,13 @@ MAIN_PLAYBOOK="$PLAYBOOK_PATH/main.yml"
 INSTANCE_STATUS=0
 INSTALLED_FLAG="/var/local/.installed"
 VPC_ID="$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text)"
+SG_NAME="SG_TEMPSSH"
+SG_TEMP_ID="$(
+  aws ec2 describe-security-groups \
+    --filters "Name=group-name,Values=${SG_NAME}" "Name=vpc-id,Values=${VPC_ID}" \
+    --query 'SecurityGroups[0].GroupId' \
+    --output text 2>/dev/null
+)"
 missing_vars=()
 
 for var in "${required_vars[@]}"; do
@@ -72,24 +79,29 @@ INSTANCE_SGS="$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
 
 # 6 - Create TEMP SG
 
-SG_TEMP_ID="$(aws ec2 create-security-group \
-  --group-name "SG_TEMPSSH" \
-  --description "Temporary SSH access" \
-  --vpc-id "$VPC_ID" \
-  --query 'GroupId' \
-  --output text)"
+if [[ -z "$SG_TEMP_ID" || "$SG_TEMP_ID" == "None" ]]; then
+  SG_TEMP_ID="$(
+    aws ec2 create-security-group \
+      --group-name "${SG_NAME}" \
+      --description "Temporary SSH access" \
+      --vpc-id "$VPC_ID" \
+      --query 'GroupId' \
+      --output text
+  )"
 
-aws ec2 authorize-security-group-ingress \
-  --group-id "$SG_TEMP_ID" \
-  --ip-permissions '[
-    {"IpProtocol":"tcp","FromPort":22,"ToPort":22,"IpRanges":[{"CidrIp":"0.0.0.0/0"}],"Ipv6Ranges":[{"CidrIpv6":"::/0"}]}
-  ]' >/dev/null 2>&1
+  aws ec2 authorize-security-group-ingress \
+    --group-id "$SG_TEMP_ID" \
+    --ip-permissions '[
+      {"IpProtocol":"tcp","FromPort":22,"ToPort":22,"IpRanges":[{"CidrIp":"0.0.0.0/0"}],"Ipv6Ranges":[{"CidrIpv6":"::/0"}]}
+    ]' >/dev/null 2>&1
 
-aws ec2 authorize-security-group-egress \
-  --group-id "$SG_TEMP_ID" \
-  --ip-permissions '[
-    {"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0"}],"Ipv6Ranges":[{"CidrIpv6":"::/0"}]}
-  ]' >/dev/null 2>&1 || true
+  aws ec2 authorize-security-group-egress \
+    --group-id "$SG_TEMP_ID" \
+    --ip-permissions '[
+      {"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0"}],"Ipv6Ranges":[{"CidrIpv6":"::/0"}]}
+    ]' >/dev/null 2>&1 || true
+
+fi
 
 echo "Created temporary SSH SG"
 
