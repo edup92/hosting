@@ -9,7 +9,10 @@ required_vars=(
   INSTANCE_USER
   INSTANCE_SSH_KEY
 )
-
+MAIN_PLAYBOOK="$PLAYBOOK_PATH/main.yml"
+INSTANCE_STATUS=0
+INSTALLED_FLAG="/var/local/.installed"
+VPC_ID="$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text)"
 missing_vars=()
 
 for var in "${required_vars[@]}"; do
@@ -26,30 +29,14 @@ if [ "${#missing_vars[@]}" -ne 0 ]; then
   exit 1
 fi
 
-# System variables
-
-WORKDIR="$(mktemp -d)"
-MAIN_PLAYBOOK="$WORKDIR/main.yml"
-INSTANCE_STATUS=0
-INSTALLED_FLAG="/var/local/.installed"
-VPC_ID="$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text)"
-
-# 1 - Requeriments
-
-command -v unzip >/dev/null 2>&1 || { echo "ERROR: unzip not installed"; exit 1; }
-
-# 2 - Uncompress ZIP
-
-echo "Extracting Ansible playbook ZIP..."
-
-unzip -oq "$PLAYBOOK_PATH" -d "$WORKDIR"
+# 2 - Check file
 
 if [ ! -f "$MAIN_PLAYBOOK" ]; then
-  echo "ERROR: main.yml not found inside ZIP"
+  echo "ERROR: main.yml not found"
   exit 1
 fi
 
-echo "Playbook extracted. main.yml found."
+echo "Main.yml found."
 
 # 3 - Check extravars
 
