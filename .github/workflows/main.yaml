@@ -327,10 +327,15 @@ jobs:
         with:
           name: tfbackend
           path: ""
-      - name: Download tfvars
+      - name: Download tf_vars
         uses: actions/download-artifact@v4
         with:
-          name: tfvars
+          name: tf_vars
+          path: ""
+      - name: Download tf_secrets
+        uses: actions/download-artifact@v4
+        with:
+          name: tf_secrets
           path: ""
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
