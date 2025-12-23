@@ -308,7 +308,8 @@ jobs:
     timeout-minutes: 5
     needs:
       - generate-tfbackend
-      - prepare-tfvars
+      - generate-vars
+      - generate-secrets
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
     steps:
