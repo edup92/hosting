@@ -9,10 +9,10 @@ terraform {
 			source  = "cloudflare/cloudflare"
 			version = ">= 3.0"
 		}
-    uptimerobot = {
+		uptimerobot = {
       source  = "uptimerobot/uptimerobot"
       version = "1.3.6"
-    }
+		}
 	}
 }
 
