@@ -382,7 +382,7 @@ resource "null_resource" "null_ansible_main" {
 
 resource "uptimerobot_monitor" "uptimerobot_main" {
   for_each = var.sites
-  friendly_name = each.value.domain
+  name = each.value.domain
   type          = "keyword"
   url           = "https://${each.value.domain}"
   keyword_type  = "not_exists"
