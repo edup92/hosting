@@ -80,8 +80,8 @@ jobs:
       - name: Generate tf_vars.json
         run: |
           echo "Storing keys into tf_vars.json:"
-          echo "$VARS" | jq -r 'keys[]' | sed "s/^/ - /"
-          printf '%s\n' "$VARS" > tf_vars.json
+          echo "$VARS_JSON" | jq -r 'keys[]' | sed "s/^/ - /"
+          printf '%s\n' "$VARS_JSON" > tf_vars.json
       - name: Upload tf_vars.json
         uses: actions/upload-artifact@v4
         with:
@@ -108,133 +108,13 @@ jobs:
       - name: Generate tf_secrets.json
         run: |
           echo "Storing keys into tf_secrets.json:"
-          echo "$VARS" | jq -r 'keys[]' | sed "s/^/ - /"
-          printf '%s\n' "$VARS" > tf_secrets.json
+          echo "$SECRETS_JSON" | jq -r 'keys[]' | sed "s/^/ - /"
+          printf '%s\n' "$SECRETS_JSON" > tf_secrets.json
       - name: Upload tf_secrets.json
         uses: actions/upload-artifact@v4
         with:
           name: tf_secrets
           path: tf_secrets.json
-
-  set-modules-matrix:
-    runs-on: ubuntu-latest
-    env:
-      MODULES_JSON: ${{ vars.MODULES_JSON }}
-      MODULES_FILE: "modules.json"
-      SCHEMA_DIR: "./.github/schemas"
-    outputs:
-      matrix: ${{ steps.generate-matrix.outputs.matrix }}
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-      - name: Save MODULES_JSON as file
-        run: printf '%s' "$MODULES_JSON" > $MODULES_FILE
-      - name: Validate MODULES_SA
-        uses: GrantBirki/json-yaml-validate@v4.0.0
-        with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.MODULES_FILE }}"
-          files:  ${{ env.MODULES_FILE }}
-          comment: "true"
-      - name: Generate modules matrix
-        id: generate-matrix
-        run: |
-          echo "matrix=$(
-            echo "${MODULES_JSON}" | jq -c '{
-              include: [ .[] | { owner: .owner, repo: .repo } ]
-            }'
-          )" >> "$GITHUB_OUTPUT"
-
-  download-modules-matrix:
-    runs-on: ubuntu-latest
-    needs:
-      - set-modules-matrix
-    env:
-      MODULES_DIR: "./modules"
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.set-modules-matrix.outputs.matrix) }}
-    steps:
-      - name: Checkout module repo
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ matrix.owner }}/${{ matrix.repo }}
-          path: ${{env.MODULES_DIR}}/${{ matrix.owner }}/${{ matrix.repo }}
-          #ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          fetch-depth: 1
-      - name: Remove git metadata
-        shell: bash
-        run: rm -rf "${{env.MODULES_DIR}}/${{ matrix.owner }}/${{ matrix.repo }}/.git"
-      - name: Upload module artifact (part)
-        uses: actions/upload-artifact@v4
-        with:
-          name: modules-part-${{ matrix.owner }}-${{ matrix.repo }}
-          path: ${{env.MODULES_DIR}}/${{ matrix.owner }}/${{ matrix.repo }}
-          if-no-files-found: error
-
-  generate-modules:
-    runs-on: ubuntu-latest
-    needs:
-      - download-modules-matrix
-    steps:
-      - name: Upload merge modules
-        uses: actions/upload-artifact/merge@v4
-        with:
-          name: modules
-          pattern: modules-part-*
-          delete-merged: true
-
-  generate-tfbackend:
-    runs-on: ubuntu-latest
-    needs:
-      - validate-aws-credentials
-      - generate-secrets
-      - generate-vars
-    env:
-      BUCKET_NAME: ${{ fromJson(vars.VARS_JSON).project_name }}-bucket-tfstate
-      AWS_REGION: ${{ fromJson(secrets.SA_JSON).aws_region }}
-    steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ fromJson(secrets.SA_JSON).aws_access_key_id }}
-          aws-secret-access-key: ${{ fromJson(secrets.SA_JSON).aws_secret_access_key }}
-          aws-region: ${{ fromJson(secrets.SA_JSON).aws_region }}
-      - name: Creates / Checks state bucket
-        run: |
-          set -euo pipefail
-          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-            echo "Bucket already exists: $BUCKET_NAME"
-          else
-            echo "Bucket does not exist. Creating: $BUCKET_NAME"
-            aws s3api create-bucket --bucket "$BUCKET_NAME" \
-              --region "$AWS_REGION" \
-              --create-bucket-configuration LocationConstraint="$AWS_REGION"
-            echo "Applying public access block to $BUCKET_NAME"
-            aws s3api put-public-access-block --bucket "$BUCKET_NAME" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
-            echo "Enabling versioning for $BUCKET_NAME"
-            aws s3api put-bucket-versioning --bucket "$BUCKET_NAME" --versioning-configuration Status=Enabled
-            echo "Enabling default encryption (SSE-S3) for $BUCKET_NAME"
-            aws s3api put-bucket-encryption --bucket "$BUCKET_NAME" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-          fi
-      - name: Create TF Backend (backend.tf)
-        run: |
-          tee backend.tf > /dev/null <<EOF
-          terraform {
-            backend "s3" {
-              bucket       = "$BUCKET_NAME"
-              key          = "terraform.tfstate"
-              use_lockfile = true
-              region       = "$AWS_REGION"
-              encrypt      = true
-            }
-          }
-          EOF
-          echo "backend.tf created"
-      - name: Upload backend.tf
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfbackend
-          path: backend.tf
 
   prepare-artifacts:
     runs-on: ubuntu-latest
@@ -301,6 +181,104 @@ jobs:
         with:
           name: artifacts
           path: build
+
+  generate-modules:
+    runs-on: ubuntu-latest
+    env:
+      MODULES_JSON: ${{ vars.MODULES_JSON }}
+      MODULES_FILE: modules.json
+      SCHEMA_DIR: ./.github/schemas
+      MODULES_DIR: ./modules
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+      - name: Save MODULES_JSON as file
+        run: printf '%s' "$MODULES_JSON" > "$MODULES_FILE"
+      - name: Validate modules.json
+        uses: GrantBirki/json-yaml-validate@v4.0.0
+        with:
+          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.MODULES_FILE }}"
+          files: ${{ env.MODULES_FILE }}
+          comment: "true"
+      # If you need private repos, uncomment the SSH setup and use git@github.com:... below.
+      # - name: Setup SSH
+      #   uses: webfactory/ssh-agent@v0.9.0
+      #   with:
+      #     ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Download all module repos
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$MODULES_DIR"
+          echo "$MODULES_JSON" | jq -r '.[] | "\(.owner) \(.repo)"' | while read -r owner repo; do
+            dest="$MODULES_DIR/$owner/$repo"
+            mkdir -p "$(dirname "$dest")"
+            echo "Cloning ${owner}/${repo} -> ${dest}"
+            # Public repos:
+            git clone --depth 1 "https://github.com/${owner}/${repo}.git" "$dest"
+            # Private repos via SSH (requires SSH setup step above):
+            # git clone --depth 1 "git@github.com:${owner}/${repo}.git" "$dest"
+            rm -rf "$dest/.git"
+          done
+      - name: Upload modules artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: modules
+          path: ${{ env.MODULES_DIR }}
+          if-no-files-found: error
+
+  generate-tfbackend:
+    runs-on: ubuntu-latest
+    needs:
+      - validate-aws-credentials
+      - generate-secrets
+      - generate-vars
+    env:
+      BUCKET_NAME: ${{ fromJson(vars.VARS_JSON).project_name }}-bucket-tfstate
+      AWS_REGION: ${{ fromJson(secrets.SA_JSON).aws_region }}
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ fromJson(secrets.SA_JSON).aws_access_key_id }}
+          aws-secret-access-key: ${{ fromJson(secrets.SA_JSON).aws_secret_access_key }}
+          aws-region: ${{ fromJson(secrets.SA_JSON).aws_region }}
+      - name: Creates / Checks state bucket
+        run: |
+          set -euo pipefail
+          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "Bucket already exists: $BUCKET_NAME"
+          else
+            echo "Bucket does not exist. Creating: $BUCKET_NAME"
+            aws s3api create-bucket --bucket "$BUCKET_NAME" \
+              --region "$AWS_REGION" \
+              --create-bucket-configuration LocationConstraint="$AWS_REGION"
+            echo "Applying public access block to $BUCKET_NAME"
+            aws s3api put-public-access-block --bucket "$BUCKET_NAME" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+            echo "Enabling versioning for $BUCKET_NAME"
+            aws s3api put-bucket-versioning --bucket "$BUCKET_NAME" --versioning-configuration Status=Enabled
+            echo "Enabling default encryption (SSE-S3) for $BUCKET_NAME"
+            aws s3api put-bucket-encryption --bucket "$BUCKET_NAME" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+          fi
+      - name: Create TF Backend (backend.tf)
+        run: |
+          tee backend.tf > /dev/null <<EOF
+          terraform {
+            backend "s3" {
+              bucket       = "$BUCKET_NAME"
+              key          = "terraform.tfstate"
+              use_lockfile = true
+              region       = "$AWS_REGION"
+              encrypt      = true
+            }
+          }
+          EOF
+          echo "backend.tf created"
+      - name: Upload backend.tf
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfbackend
+          path: backend.tf
 
   tf-plan:
     runs-on: ubuntu-latest
@@ -388,10 +366,12 @@ jobs:
     needs:
       - approbal
       - prepare-artifacts
+      - prepare-modules
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       ARTIFACTS_DIR: "./artifacts"
       SCRIPTS_DIR: "./scripts"
+      MODULES_DIR:  "./modules"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -425,7 +405,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: artifacts
-          path: ${{ env.ARTIFACTS_DIR }}
+          path: ${{ env.ARTIFACTS_DIR }}       
+      - name: Download modules
+        uses: actions/download-artifact@v4
+        with:
+          name: modules
+          path: ${{ env.MODULES_DIR }}
       - name: Cache Terraform providers (plugin cache)
         id: tfinit-providers
         uses: actions/cache@v4
