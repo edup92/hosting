@@ -2,27 +2,12 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "required": [
-    "cf_token",
-    "uptimerobot_token",
-    "admin_ip",
     "project_name",
     "instance_type",
     "instance_disk_size",
     "sites"
   ],
   "properties": {
-    "cf_token": {
-      "type": "string",
-      "minLength": 1
-    },
-    "uptimerobot_token": {
-      "type": "string",
-      "minLength": 1
-    },
-    "admin_ip": {
-      "type": "string",
-      "minLength": 1
-    },
     "project_name": {
       "type": "string",
       "minLength": 1
