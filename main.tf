@@ -391,11 +391,14 @@ locals {
 
 resource "uptimerobot_monitor" "uptimerobot_main" {
   for_each = local.sites_normalized
+
   name = each.value.domain
-  type          = "KEYWORD"
-  url           = "https://${each.value.domain}"
-  keyword_type  = "ALERT_NOT_EXISTS"
+  type = "keyword" # <- importante
+
+  url              = "https://${each.value.domain}"
+  keyword_type     = "ALERT_NOT_EXISTS"
   keyword_case_type = "CaseSensitive"
-  keyword_value = each.value.monitor_keyword
-  interval      = 15
+  keyword_value    = each.value.monitor_keyword
+
+  interval = 300
 }
