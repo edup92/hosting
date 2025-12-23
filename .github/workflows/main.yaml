@@ -111,7 +111,6 @@ jobs:
       LAMBDA_DIR: lambda
       PYTHON_DIR: python
       NODEJS_DIR: nodejs
-      ANSIBLE_DIR: ansible
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -269,8 +268,6 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ansible
       - name: Create tf providers dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-      - name: Create artifacts dir
-        run: mkdir -p "${ARTIFACTS_DIR}"
       - name: Set execute permissions for scripts
         run: |
           if [ -d $SCRIPTS_DIR ]; then
