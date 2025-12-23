@@ -5,7 +5,7 @@
     "modules_repos"
   ],
   "properties": {
-    "MODULES_FILE": {
+    "modules_repos": {
       "type": "array"
     }
   },
