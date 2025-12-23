@@ -203,26 +203,6 @@ resource "aws_dlm_lifecycle_policy" "dlm_main" {
   }
 }
 
-# Playbook
-
-resource "null_resource" "null_ansible_install" {
-  depends_on = [
-    aws_instance.instance_main
-  ]
-  triggers = {
-    instance_id   = aws_instance.instance_main.id
-  }
-  provisioner "local-exec" {
-    environment = {
-      INSTANCE_ID    = aws_instance.instance_main.id
-      INSTANCE_USER  = local.ansible_user
-      INSTANCE_SSH_KEY = nonsensitive(tls_private_key.pem_ssh.private_key_pem)
-      PLAYBOOK_PATH = local.ansible_path
-    }
-    command = local.script_ansible
-  }
-}
-
 # Cloduflare ip updater
 
 resource "aws_iam_role" "role_cfupdater" {

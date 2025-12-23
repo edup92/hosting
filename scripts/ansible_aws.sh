@@ -133,28 +133,7 @@ if [ "$INSTANCE_STATUS" -ne 1 ]; then
   exit 1
 fi
 
-# 8 - Check if installed flag exists
-
-echo "Checking if $INSTALLED_FLAG exists on server"
-
-if ssh -o BatchMode=yes \
-      -o ConnectTimeout=3 \
-      -o StrictHostKeyChecking=no \
-      -o UserKnownHostsFile=/dev/null \
-      "$INSTANCE_USER@$INSTANCE_IP" "test -f $INSTALLED_FLAG"; then
-    echo "Playbook already installed"
-    echo "If you need to rerun the playbook you need to enter the server and do sudo rm $INSTALLED_FLAG"
-    echo "Restoring firewall"
-    aws ec2 modify-instance-attribute \
-    --instance-id "$INSTANCE_ID" \
-    --groups $INSTANCE_SGS
-    echo "Exiting."
-    exit 0
-fi
-
-echo "Playbook NOT installed, continuing"
-
-# 9 - Run playbook
+# 8 - Run playbook
 
 echo "Running main.yml playbook"
 
@@ -168,20 +147,7 @@ ansible-playbook \
 
 echo "Running main.yml playbook finished"
 
-# 10 - Set installed flag
-
-echo "Setting $INSTALLED_FLAG"
-
-ssh -o BatchMode=yes \
-    -o ConnectTimeout=3 \
-    -o StrictHostKeyChecking=no \
-    -o UserKnownHostsFile=/dev/null \
-    "$INSTANCE_USER@$INSTANCE_IP" \
-    "sudo touch $INSTALLED_FLAG"
-
-echo "Saved $INSTALLED_FLAG"
-
-# 11 - Restore FW
+# 9 - Restore FW
 
 echo "Restoring firewall"
 
@@ -189,11 +155,10 @@ aws ec2 modify-instance-attribute \
   --instance-id "$INSTANCE_ID" \
   --groups $INSTANCE_SGS
 
-# 12 - Cleanup
+# 10 - Cleanup
 
-rm -rf "$WORKDIR"
 aws ec2 delete-security-group --group-id "$SG_TEMP_ID"  >/dev/null 2>&1 || true
 
-# 13 - Done
+# 11 - Done
 
 echo "Script Finished"
