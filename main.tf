@@ -351,6 +351,27 @@ resource "aws_iam_role_policy_attachment" "policyattach_bucket_backup" {
   policy_arn = aws_iam_policy.policy_bucket_backup.arn
 }
 
+# Playbook
+
+resource "null_resource" "null_ansible_main" {
+  depends_on = [
+    aws_instance.instance_main
+  ]
+  triggers = {
+    instance_id   = aws_instance.instance_main.id
+  }
+  provisioner "local-exec" {
+    environment = {
+      INSTANCE_ID    = aws_instance.instance_main.id
+      INSTANCE_USER  = local.ansible_user
+      INSTANCE_SSH_KEY = nonsensitive(tls_private_key.pem_ssh.private_key_pem)
+      EXTRAVARS = jsonencode(var.sites)
+      PLAYBOOK_PATH = local.ansible_path
+    }
+    command = local.script_ansible
+  }
+}
+
 # Cloudflare
 
 

@@ -40,6 +40,6 @@ locals {
 
   # Ansible
   script_ansible        = "./scripts/ansible_aws.sh"
-  ansible_path          = "./artifacts/ansible/install/"
+  ansible_path          = "./artifacts/ansible/main/"
   ansible_user          = "ubuntu"
 }
