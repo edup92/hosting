@@ -385,7 +385,7 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
   name = each.value.domain
   type          = "KEYWORD"
   url           = "https://${each.value.domain}"
-  keyword_type  = "not_exists"
+  keyword_type  = "ALERT_NOT_EXISTS"
   keyword_case_type = "CaseSensitive"
   keyword_value = each.value.monitor_keyword
   interval      = 15
