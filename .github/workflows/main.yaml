@@ -346,7 +346,7 @@ jobs:
       - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform plan
-        run: terraform plan -input=false -no-color -out=tfplan -var-file="tfvars.json"
+        run: terraform plan -input=false -no-color -out=tfplan -var-file="tf_secrets.json" -var-file="tf_vars.json"
       - name: Generate visual plan
         run: terraform show -no-color tfplan > tfplan_visual
       - name: Upload tfplan_visual
