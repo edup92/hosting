@@ -116,12 +116,14 @@ jobs:
           name: tf_secrets
           path: tf_secrets.json
 
-  generate-modules:
+  set-modules-matrix:
     runs-on: ubuntu-latest
     env:
-      SECRETS_JSON: ${{ vars.MODULES_JSON }}
-      SECRETS_FILE: "modules.json"
+      MODULES_JSON: ${{ vars.MODULES_JSON }}
+      MODULES_FILE: "modules.json"
       SCHEMA_DIR: "./.github/schemas"
+    outputs:
+      matrix: ${{ steps.generate-matrix.outputs.matrix }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -133,24 +135,53 @@ jobs:
           json_schema: "${{ env.SCHEMA_DIR }}/${{ env.MODULES_FILE }}"
           files:  ${{ env.MODULES_FILE }}
           comment: "true"
-      - name: Generate tf_modules.json
+      - name: Generate modules matrix
+        id: generate-matrix
         run: |
-          echo "Storing keys into tf_modules.json:"
-          echo "$VARS" | jq -r 'keys[]' | sed "s/^/ - /"
-          printf '%s\n' "$VARS" > tf_modules.json
-      - name: Upload tf_modules.json
+          echo "matrix=$(
+            echo "${MODULES_JSON}" | jq -c '{
+              include: [ .[] | { owner: .owner, repo: .repo } ]
+            }'
+          )" >> "$GITHUB_OUTPUT"
+
+  download-modules-matrix:
+    runs-on: ubuntu-latest
+    needs:
+      - set-modules-matrix
+    env:
+      MODULES_DIR: "./modules"
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.set-modules-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout module repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.owner }}/${{ matrix.repo }}
+          path: ${{env.MODULES_DIR}}/${{ matrix.owner }}/${{ matrix.repo }}
+          #ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fetch-depth: 1
+      - name: Remove git metadata
+        shell: bash
+        run: rm -rf "${{env.MODULES_DIR}}/${{ matrix.owner }}/${{ matrix.repo }}/.git"
+      - name: Upload module artifact (part)
         uses: actions/upload-artifact@v4
         with:
-          name: tf_modules
-          path: tf_modules.json
+          name: modules-part-${{ matrix.owner }}-${{ matrix.repo }}
+          path: ${{env.MODULES_DIR}}/${{ matrix.owner }}/${{ matrix.repo }}
+          if-no-files-found: error
 
-  get-modules-list:
+  generate-modules:
     runs-on: ubuntu-latest
-    env:
-      VARS_JSON: ${{ vars.VARS_JSON }}
+    needs:
+      - download-modules-matrix
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
+      - name: Upload merge modules
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: modules
+          pattern: modules-part-*
+          delete-merged: true
 
   prepare-tfbackend:
     runs-on: ubuntu-latest
