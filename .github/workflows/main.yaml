@@ -8,13 +8,66 @@ permissions:
 
 jobs:
 
+  validate-credentials:
+    runs-on: ubuntu-latest
+    env:
+      SA_JSON: ${{ secrets.SA_JSON }}
+      SA_FILE: "sa.json"
+      SCHEMA_DIR: "./.github/schemas"
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ fromJson(secrets.SA_JSON).aws_access_key_id }}
+          aws-secret-access-key: ${{ fromJson(secrets.SA_JSON).aws_secret_access_key }}
+          aws-region: ${{ fromJson(secrets.SA_JSON).aws_region }}
+      - name: Save SA_JSON as file
+        run: printf '%s' "$SA_JSON" > $SA_FILE
+      - name: Validate SA_JSON
+        uses: GrantBirki/json-yaml-validate@v4.0.0
+        with:
+          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SA_FILE }}"
+          files:  ${{ env.SA_FILE }}
+          comment: "true"
+      - name: Check user is valid (STS)
+        run: |
+          if aws sts get-caller-identity >/dev/null 2>&1; then
+            echo "OK: credentials are valid"
+          else
+            echo "ERROR: invalid AWS credentials (sts get-caller-identity failed)"
+            exit 1
+          fi
+      - name: Check attached managed policy is AdministratorAccess
+        run: |
+          ARN="$(aws sts get-caller-identity --query Arn --output text)"
+          USER_NAME="${ARN##*/}"
+          ADMIN_ARN="arn:aws:iam::aws:policy/AdministratorAccess"
+
+          echo $ARN;
+          echo $USER_NAME;
+          echo $USER_NAME;
+
+          COUNT="$(aws iam list-attached-user-policies \
+            --user-name "$USER_NAME" \
+            --query "AttachedPolicies[?PolicyArn=='${ADMIN_ARN}'] | length(@)" \
+            --output text)"
+
+          if [[ "$COUNT" = "1" ]]; then
+            echo "OK: user '$USER_NAME' has AdministratorAccess attached"
+          else
+            echo "ERROR: user '$USER_NAME' does NOT have AdministratorAccess attached"
+            exit 1
+          fi
+
   validate-secrets:
     runs-on: ubuntu-latest
     env:
-      VARS_JSON: ${{ secrets.VARS_JSON }}
+      VARS_JSON: ${{ vars.VARS_JSON }}
       SA_JSON: ${{ secrets.SA_JSON }}
       SECRETS_JSON: ${{ secrets.SECRETS_JSON }}
-      MODULES_JSON: ${{ secrets.MODULES_JSON }}
+      MODULES_JSON: ${{ vars.MODULES_JSON }}
       VARS_FILE: "vars.json"
       SA_FILE: "sa.json"
       SECRETS_FILE: "secrets.json"
@@ -49,28 +102,26 @@ jobs:
           json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SECRETS_FILE }}"
           files:  ${{ env.SECRETS_FILE }}
           comment: "true"
-      - name: Validate SA_JSON
+      - name: Validate MODULES_SA
         uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
           json_schema: "${{ env.SCHEMA_DIR }}/${{ env.MODULES_FILE }}"
           files:  ${{ env.MODULES_FILE }}
           comment: "true"
 
-
   get-modules-list:
     runs-on: ubuntu-latest
     env:
-      VARS_JSON: ${{ secrets.VARS_JSON }}
+      VARS_JSON: ${{ vars.VARS_JSON }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
-
 
   prepare-tfbackend:
     runs-on: ubuntu-latest
     needs: validate-secrets
     env:
-      BUCKET_NAME: ${{ fromJson(secrets.VARS_JSON).project_name }}-bucket-tfstate
+      BUCKET_NAME: ${{ fromJson(vars.VARS_JSON).project_name }}-bucket-tfstate
       AWS_REGION: ${{ fromJson(secrets.SA_JSON).aws_region }}
     steps:
       - name: Configure AWS Credentials
@@ -122,7 +173,7 @@ jobs:
     steps:
       - name: Generate tfvars.json
         env:
-          VARS: ${{ secrets.VARS_JSON }}
+          VARS: ${{ vars.VARS_JSON }}
         run: |
           echo "Storing keys into tfvars.json:"
           echo "$VARS" | jq -r 'keys[]' | sed "s/^/ - /"
