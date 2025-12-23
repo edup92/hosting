@@ -57,53 +57,14 @@ jobs:
           comment: "true"
 
 
-  get-modules:
+  get-modules-list:
     runs-on: ubuntu-latest
     env:
       VARS_JSON: ${{ secrets.VARS_JSON }}
-      SA_JSON: ${{ secrets.SA_JSON }}
-      SECRETS_JSON: ${{ secrets.SECRETS_JSON }}
-      MODULES_JSON: ${{ secrets.MODULES_JSON }}
-      VARS_FILE: "vars.json"
-      SA_FILE: "sa.json"
-      SECRETS_FILE: "secrets.json"
-      MODULES_FILE: "modules.json"
-      SCHEMA_DIR: "./.github/schemas"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
-      - name: Save VARS_JSON as file
-        run: printf '%s' "$VARS_JSON" > $VARS_FILE
-      - name: Save SA_JSON as file
-        run: printf '%s' "$SA_JSON" > $SA_FILE
-      - name: Save SECRETS_JSON as file
-        run: printf '%s' "$SECRETS_JSON" > $SECRETS_FILE
-      - name: Save MODULES_JSON as file
-        run: printf '%s' "$MODULES_JSON" > $MODULES_FILE
-      - name: Validate VARS_JSON
-        uses: GrantBirki/json-yaml-validate@v4.0.0
-        with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.VARS_FILE }}"
-          files:  ${{ env.VARS_FILE }}
-          comment: "true"
-      - name: Validate SA_JSON
-        uses: GrantBirki/json-yaml-validate@v4.0.0
-        with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SA_FILE }}"
-          files:  ${{ env.SA_FILE }}
-          comment: "true"
-      - name: Validate SECRETS_JSON
-        uses: GrantBirki/json-yaml-validate@v4.0.0
-        with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SECRETS_FILE }}"
-          files:  ${{ env.SECRETS_FILE }}
-          comment: "true"
-      - name: Validate SA_JSON
-        uses: GrantBirki/json-yaml-validate@v4.0.0
-        with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.MODULES_FILE }}"
-          files:  ${{ env.MODULES_FILE }}
-          comment: "true"
+
 
   prepare-tfbackend:
     runs-on: ubuntu-latest
