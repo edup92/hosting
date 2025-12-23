@@ -14,12 +14,6 @@ INSTANCE_STATUS=0
 INSTALLED_FLAG="/var/local/.installed"
 VPC_ID="$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text)"
 SG_NAME="SG_TEMPSSH"
-SG_TEMP_ID="$(
-  aws ec2 describe-security-groups \
-    --filters "Name=group-name,Values=${SG_NAME}" "Name=vpc-id,Values=${VPC_ID}" \
-    --query 'SecurityGroups[0].GroupId' \
-    --output text 2>/dev/null
-)"
 missing_vars=()
 
 for var in "${required_vars[@]}"; do
@@ -78,6 +72,13 @@ INSTANCE_SGS="$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
   --output text)"
 
 # 6 - Create TEMP SG
+
+SG_TEMP_ID="$(
+  aws ec2 describe-security-groups \
+    --filters "Name=group-name,Values=${SG_NAME}" "Name=vpc-id,Values=${VPC_ID}" \
+    --query 'SecurityGroups[0].GroupId' \
+    --output text 2>/dev/null
+)"
 
 if [[ -z "$SG_TEMP_ID" || "$SG_TEMP_ID" == "None" ]]; then
   SG_TEMP_ID="$(

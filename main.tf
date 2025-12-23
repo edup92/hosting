@@ -47,7 +47,7 @@ resource "aws_security_group_rule" "sgrule_main_adminaccess" {
   from_port         = 443
   to_port           = 443
   protocol          = "tcp"
-  cidr_blocks       = [var.admin_ip]
+  cidr_blocks       = data.cloudflare_ip_ranges.cloudflare.ipv4_cidrs
   security_group_id = aws_security_group.sg_main.id
   description       = "Allow HTTPS from Cloudflare (IPv4)"
 }
@@ -57,7 +57,7 @@ resource "aws_security_group_rule" "sgrule_main_ipv4" {
   from_port         = 0
   to_port           = 0
   protocol          = "-1"
-  cidr_blocks       = data.cloudflare_ip_ranges.cloudflare.ipv4_cidrs
+  cidr_blocks       = [var.admin_ip]
   security_group_id = aws_security_group.sg_main.id
   description       = "Allow Admin Access"
 }
