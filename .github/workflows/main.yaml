@@ -376,6 +376,7 @@ jobs:
       - approbal
       - prepare-artifacts
       - generate-modules
+      - set-aws-credentials
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       ARTIFACTS_DIR: "./artifacts"
