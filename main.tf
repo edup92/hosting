@@ -380,8 +380,17 @@ resource "null_resource" "null_ansible_main" {
 
 # Uptimerobot
 
+locals {
+  sites_normalized = {
+    for k, v in var.sites : k => {
+      domain          = trimspace(v.domain)
+      monitor_keyword = trimspace(v.monitor_keyword)
+    }
+  }
+}
+
 resource "uptimerobot_monitor" "uptimerobot_main" {
-  for_each = var.sites
+  for_each = local.sites_normalized
   name = each.value.domain
   type          = "KEYWORD"
   url           = "https://${each.value.domain}"
