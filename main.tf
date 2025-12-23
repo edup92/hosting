@@ -365,7 +365,9 @@ resource "null_resource" "null_ansible_main" {
       INSTANCE_ID    = aws_instance.instance_main.id
       INSTANCE_USER  = local.ansible_user
       INSTANCE_SSH_KEY = nonsensitive(tls_private_key.pem_ssh.private_key_pem)
-      EXTRAVARS = jsonencode(var.sites)
+      EXTRAVARS = jsonencode({
+        sites = var.sites
+      })
       PLAYBOOK_PATH = local.ansible_path
     }
     command = local.script_ansible
