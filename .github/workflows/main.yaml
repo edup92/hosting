@@ -288,6 +288,8 @@ jobs:
         uses: actions/checkout@v5
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v3
+      - name: Create plugin cache dir
+        run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
       - name: Terraform version
         run: terraform version
       - name: Configure AWS Credentials
@@ -317,8 +319,6 @@ jobs:
           name: modules
           path: ${{ env.MODULES_DIR }}
           if-no-files-found: error
-      - name: Create plugin cache dir
-        run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
       - name: Cache Terraform providers
         id: tfinit-providers
         uses: actions/cache@v4
@@ -382,16 +382,6 @@ jobs:
         uses: actions/checkout@v5
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v3
-      - name: Terraform version
-        run: terraform version
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ fromJson(secrets.SA_JSON).aws_access_key_id }}
-          aws-secret-access-key: ${{ fromJson(secrets.SA_JSON).aws_secret_access_key }}
-          aws-region: ${{ fromJson(secrets.SA_JSON).aws_region }}
-      - name: Install Ansible
-        run: sudo apt-get update && sudo apt-get install -y ansible
       - name: Create tf providers dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
       - name: Create modules dir
@@ -405,6 +395,16 @@ jobs:
             echo "Directory $SCRIPTS_DIR does not exist"
             exit 1
           fi
+      - name: Terraform version
+        run: terraform version
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ fromJson(secrets.SA_JSON).aws_access_key_id }}
+          aws-secret-access-key: ${{ fromJson(secrets.SA_JSON).aws_secret_access_key }}
+          aws-region: ${{ fromJson(secrets.SA_JSON).aws_region }}
+      - name: Install Ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible
       - name: Download tfbackend
         uses: actions/download-artifact@v4
         with:
