@@ -327,6 +327,8 @@ jobs:
             ${{ runner.os }}-tfproviders-
       - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
+      - name: test
+        run: cat tf_vars.json
       - name: Terraform plan
         run: terraform plan -input=false -no-color -out=tfplan -var-file="tf_secrets.json" -var-file="tf_vars.json"
       - name: Generate visual plan
