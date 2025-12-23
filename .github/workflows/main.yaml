@@ -238,7 +238,6 @@ jobs:
 
   prepare-artifacts:
     runs-on: ubuntu-latest
-    needs: validate-secrets
     env:
       BUILD_DIR: build
       ARTIFACTS_DIR: artifacts
