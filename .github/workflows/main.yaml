@@ -211,7 +211,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$MODULES_DIR"
           echo "$MODULES_JSON" | jq -r '.[] | "\(.owner) \(.repo)"' | while read -r owner repo; do
-            dest="$MODULES_DIR/$owner/$repo"
+            dest="$MODULES_DIR/$repo"
             mkdir -p "$(dirname "$dest")"
             echo "Cloning ${owner}/${repo} -> ${dest}"
             # Public repos:
