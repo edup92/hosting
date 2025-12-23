@@ -288,6 +288,8 @@ jobs:
         uses: actions/checkout@v5
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v3
+      - name: Terraform version
+        run: terraform version
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -380,6 +382,8 @@ jobs:
         uses: actions/checkout@v5
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v3
+      - name: Terraform version
+        run: terraform version
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
