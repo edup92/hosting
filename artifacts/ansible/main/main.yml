@@ -81,7 +81,7 @@
             --domainName={{ item.value.domain }}
             --phpVersion=8.2
             --vhostTemplate=Generic
-            --siteUser={{ item.value.domain }}
+            --siteUser={{ (item.value.domain | split('.'))[0] }}
             --siteUserPassword={{ lookup('ansible.builtin.password', '/dev/null length=14 chars=ascii_letters,digits') }}
           loop: "{{ sites | dict2items }}"
           changed_when: true
