@@ -6,7 +6,7 @@
   ],
   "properties": {
     "MODULES_FILE": {
-      "type": "object"
+      "type": "array"
     }
   },
   "additionalProperties": false

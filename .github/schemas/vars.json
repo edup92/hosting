@@ -24,13 +24,13 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["domain", "monitor_keyworkd"],
+        "required": ["domain", "monitor_keyword"],
         "properties": {
           "domain": {
             "type": "string",
             "minLength": 1
           },
-          "monitor_keyworkd": {
+          "monitor_keyword": {
             "type": "string",
             "minLength": 1
           }
