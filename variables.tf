@@ -32,6 +32,6 @@ variable "sites" {
 	description = "Mapa de sitios con dominio y palabra clave de monitorización"
 	type = map(object({
 		domain = string
-		monitor_keyworkd = string
+		monitor_keyword = string
 	}))
 }
