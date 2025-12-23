@@ -380,11 +380,12 @@ resource "null_resource" "null_ansible_main" {
 
 # Uptimerobot
 
-#resource "uptimerobot_monitor" "keyword_check" {
-#  friendly_name = "My Keyword Monitor"
-#  type          = "keyword"
-#  url           = "https://example.com"
-#  keyword_type = "not_exists"
-#  keyword_value = "Welcome"
-#  interval = 5
-#}
+resource "uptimerobot_monitor" "uptimerobot_main" {
+  for_each = var.sites
+  friendly_name = each.value.domain
+  type          = "keyword"
+  url           = "https://${each.value.domain}"
+  keyword_type  = "not_exists"
+  keyword_value = each.value.monitor_keyword
+  interval      = 15
+}
