@@ -34,12 +34,6 @@
 
     - name: Install Cloudpanel
       block:
-        - name: Check OS compatibility
-          fail:
-            msg: "CloudPanel only allowed in Ubuntu 24.04."
-          when: >
-            ansible_facts['distribution'] != 'Ubuntu'
-            or ansible_facts['distribution_version'] is version('24.04', '!=')
         - name: Check if clpctl exists
           shell: command -v clpctl
           register: clpctl_check
