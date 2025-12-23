@@ -383,9 +383,10 @@ resource "null_resource" "null_ansible_main" {
 resource "uptimerobot_monitor" "uptimerobot_main" {
   for_each = var.sites
   name = each.value.domain
-  type          = "keyword"
+  type          = "KEYWORD"
   url           = "https://${each.value.domain}"
   keyword_type  = "not_exists"
+  keyword_case_type = "CaseSensitive"
   keyword_value = each.value.monitor_keyword
   interval      = 15
 }
