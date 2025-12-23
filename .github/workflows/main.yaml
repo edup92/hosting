@@ -397,6 +397,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ansible
       - name: Create tf providers dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
+      - name: Create modules dir
+        run: mkdir -p "${MODULES_DIR}"
       - name: Set execute permissions for scripts
         run: |
           if [ -d $SCRIPTS_DIR ]; then
@@ -429,6 +431,8 @@ jobs:
           key: ${{ runner.os }}-tfinit-providers-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
             ${{ runner.os }}-tfinit-providers-
+      - name: test
+        run : ls
       - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform apply
