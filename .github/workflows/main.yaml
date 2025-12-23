@@ -366,7 +366,7 @@ jobs:
     needs:
       - approbal
       - prepare-artifacts
-      - prepare-modules
+      - generate-modules
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       ARTIFACTS_DIR: "./artifacts"
