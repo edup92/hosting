@@ -83,6 +83,8 @@
             --vhostTemplate=Generic
             --siteUser={{ (item.value.domain | split('.'))[0] }}
             --siteUserPassword={{ lookup('ansible.builtin.password', '/dev/null length=14 chars=ascii_letters,digits') }}
+          args:
+            creates: "/home/{{ site_user }}"
           loop: "{{ sites | dict2items }}"
           changed_when: true
         - name: Add databases (clpctl)
@@ -92,6 +94,8 @@
             --databaseName={{ (item.value.domain | split('.'))[0] }}
             --databaseUserName={{ (item.value.domain | split('.'))[0] }}
             --databaseUserPassword={{ db_pass }}
+          args:
+            creates: "/home/{{ site_user }}"
           loop: "{{ sites | dict2items }}"
           loop_control:
             label: "{{ item.value.domain }}"
