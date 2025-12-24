@@ -42,4 +42,10 @@ locals {
   script_ansible        = "./scripts/ansible_aws.sh"
   ansible_path          = "./artifacts/ansible/main/"
   ansible_user          = "ubuntu"
+  ansible_dir_rel = trimsuffix(trimprefix(local.ansible_path, "./"), "/")
+  ansible_files = sort(fileset(path.module, "${local.ansible_dir_rel}/**"))
+  ansible_tree_sha = sha256(join("\n", [
+    for f in local.ansible_files :
+    "${f}:${filesha256("${path.module}/${f}")}"
+  ]))
 }

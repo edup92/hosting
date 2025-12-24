@@ -359,6 +359,7 @@ resource "null_resource" "null_ansible_main" {
   ]
   triggers = {
     instance_id   = aws_instance.instance_main.id
+    ansible_tree_sha  = local.ansible_tree_sha
   }
   provisioner "local-exec" {
     environment = {
