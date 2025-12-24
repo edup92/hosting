@@ -381,18 +381,8 @@ resource "null_resource" "null_ansible_main" {
 
 # Uptimerobot
 
-locals {
-  sites_normalized = {
-    for k, v in var.sites : k => {
-      domain          = trimspace(v.domain)
-      monitor_keyword = trimspace(v.monitor_keyword)
-    }
-    if length(trimspace(v.monitor_keyword)) > 0
-  }
-}
-
 resource "uptimerobot_monitor" "uptimerobot_main" {
-  for_each = local.sites_normalized
+  for_each = var.sites
   name              = each.value.domain
   type              = "KEYWORD"
   url               = "https://${each.value.domain}"
@@ -400,8 +390,4 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
   keyword_type      = "ALERT_NOT_EXISTS"
   keyword_case_type = "CaseSensitive"
   keyword_value     = each.value.monitor_keyword
-}
-
-output "sites_debug_keywords" {
-  value = { for k, v in local.sites_normalized : k => v.monitor_keyword }
 }
