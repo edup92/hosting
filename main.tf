@@ -388,6 +388,6 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
   url               = "https://${each.value.domain}"
   interval          = 300 # Free plan (5 min). Si tu plan permite 60s, pon 60.
   keyword_type      = "ALERT_NOT_EXISTS"
-  keyword_case_type = "CaseSensitive"
+  keyword_case_type = "CaseInsensitive"
   keyword_value     = each.value.monitor_keyword
 }
