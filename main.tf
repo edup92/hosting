@@ -391,16 +391,16 @@ locals {
   }
 }
 
-resource "uptimerobot_monitor" "uptimerobot_main" {
-  for_each = local.sites_normalized
-  name              = each.value.domain
-  type              = "KEYWORD"
-  url               = "https://${each.value.domain}"
-  interval          = 300 # Free plan (5 min). Si tu plan permite 60s, pon 60.
-  keyword_type      = "ALERT_NOT_EXISTS"
-  keyword_case_type = "CaseSensitive"
-  keyword_value     = each.value.monitor_keyword
-}
+#resource "uptimerobot_monitor" "uptimerobot_main" {
+#  for_each = local.sites_normalized
+#  name              = each.value.domain
+#  type              = "KEYWORD"
+#  url               = "https://${each.value.domain}"
+#  interval          = 300 # Free plan (5 min). Si tu plan permite 60s, pon 60.
+#  keyword_type      = "ALERT_NOT_EXISTS"
+#  keyword_case_type = "CaseSensitive"
+#  keyword_value     = each.value.monitor_keyword
+#}
 
 output "sites_debug_keywords" {
   value = { for k, v in local.sites_normalized : k => v.monitor_keyword }
