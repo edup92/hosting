@@ -399,7 +399,7 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
 
   # Look for "healthy" in the response
   keyword_type  = "ALERT_NOT_EXISTS"
-  keyword_value = each.value.monitor_keyword
+  keyword_value     = trimspace(each.value.monitor_keyword)
 
   # Case insensitive search (default)
   keyword_case_type = "CaseInsensitive"
