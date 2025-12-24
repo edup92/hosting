@@ -75,39 +75,58 @@
 
     - name: Add sites
       block:
-        - name: Add sites (clpctl)
+        - name: Check if site exists
+          stat:
+            path: "/home/{{ (item.value.domain | split('.'))[0] }}"
+          loop: "{{ sites | dict2items }}"
+          register: site_exists
+        - name: Add sites (clpctl) only if missing
           command: >
             clpctl site:add:php
-            --domainName={{ item.value.domain }}
+            --domainName={{ domain }}
             --phpVersion=8.2
             --vhostTemplate=Generic
-            --siteUser={{ (item.value.domain | split('.'))[0] }}
-            --siteUserPassword={{ lookup('ansible.builtin.password', '/dev/null length=14 chars=ascii_letters,digits') }}
+            --siteUser={{ site_user }}
+            --siteUserPassword={{ site_pass }}
+          loop: "{{ site_exists.results }}"
+          vars:
+            domain: "{{ item.item.value.domain }}"
+            site_user: "{{ (domain | split('.'))[0] }}"
+            site_pass: "{{ lookup('ansible.builtin.password', '/dev/null length=14 chars=ascii_letters,digits') }}"
+          when: not item.stat.exists
           args:
             creates: "/home/{{ site_user }}"
-          loop: "{{ sites | dict2items }}"
           changed_when: true
-        - name: Add databases (clpctl)
+        - name: Generate DB passwords (only for existing sites)
+          set_fact:
+            db_passwords: >-
+              {{ db_passwords | default({}) | combine({
+                domain: lookup('ansible.builtin.password', '/dev/null length=14 chars=ascii_letters,digits')
+              }) }}
+          loop: "{{ site_exists.results }}"
+          vars:
+            domain: "{{ item.item.value.domain }}"
+          when: item.stat.exists
+        - name: Add databases (clpctl) only if site exists
           command: >
             clpctl db:add
-            --domainName={{ item.value.domain }}
-            --databaseName={{ (item.value.domain | split('.'))[0] }}
-            --databaseUserName={{ (item.value.domain | split('.'))[0] }}
-            --databaseUserPassword={{ db_pass }}
-          args:
-            creates: "/home/{{ site_user }}"
-          loop: "{{ sites | dict2items }}"
-          loop_control:
-            label: "{{ item.value.domain }}"
+            --domainName={{ domain }}
+            --databaseName={{ site_user }}
+            --databaseUserName={{ site_user }}
+            --databaseUserPassword={{ db_passwords[domain] }}
+          loop: "{{ site_exists.results }}"
           vars:
-            db_pass: "{{ lookup('ansible.builtin.password', '/dev/null length=14 chars=ascii_letters,digits') }}"
+            domain: "{{ item.item.value.domain }}"
+            site_user: "{{ (domain | split('.'))[0] }}"
+          when: item.stat.exists
           register: db_add
           changed_when: true
         - name: Show generated DB passwords (per domain)
           debug:
-            msg: "Domain={{ item.item.value.domain }} DBUser={{ (item.item.value.domain | split('.'))[0] }} DBPassword={{ item.item.vars.db_pass | default('UNKNOWN') }}"
-          loop: "{{ db_add.results }}"
-          loop_control:
-            label: "{{ item.item.value.domain }}"
+            msg: "Domain={{ domain }} DBUser={{ site_user }} DBPassword={{ db_passwords[domain] }}"
+          loop: "{{ site_exists.results }}"
+          vars:
+            domain: "{{ item.item.value.domain }}"
+            site_user: "{{ (domain | split('.'))[0] }}"
+          when: item.stat.exists
           no_log: false
-          
