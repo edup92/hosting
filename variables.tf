@@ -1,20 +1,5 @@
-variable "cf_token" {
-	description = "Cloudflare Token"
-	type        = string
-}
-
-variable "uptimerobot_token" {
-	description = "Uptimerobot Token"
-	type        = string
-}
-
 variable "project_name" {
 	description = "Name of the project (used for naming resources)"
-	type        = string
-}
-
-variable "admin_ip" {
-	description = "Admin IP Access"
 	type        = string
 }
 
