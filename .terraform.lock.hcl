@@ -80,18 +80,18 @@ provider "registry.terraform.io/hashicorp/tls" {
 }
 
 provider "registry.terraform.io/uptimerobot/uptimerobot" {
-  version     = "1.3.6"
-  constraints = ">= 0.9.0"
+  version     = "1.3.5"
+  constraints = "1.3.5"
   hashes = [
-    "h1:1eX1O2RxpBCXVDzxxsWn5oADXZ233yKNz4GYW6y5+Mg=",
-    "zh:345085bc057cb175166598a3098cbf1d3fac952a816ede0270cd20d2793f21f2",
-    "zh:6224fdf9a4189ee87c9beb3c7f2991c37c1b05ea69b4aafbf4111d71dcb710c5",
-    "zh:668144ea4b26a4cb419b81ff6a750b90fbf314c09a7c46ef9562ccdb8b94ce34",
-    "zh:78e6c4c8f187b2750cd94abba8bd3814e291a707217466aaf75484537394ace7",
+    "h1:EXD6TVZwU++z/NRa6/ve+35jtENd+ZKFdcVDGpuJG0k=",
+    "zh:1650306ca9ade27a42367061302eb9b17936c05d3c577cbb3a0b81b27559f643",
+    "zh:46e89c630eac834842a149ad1fbc428944580ecc702329a0025081d6ecd30d56",
+    "zh:57e58dd1c10d78ec97a5f2f02f0598726ae3b520d1004a9cf306adb1793b4327",
+    "zh:58d5247ba219389d384f58c2299a34c47cb3f810bcd10b7e42877eea020c97f5",
     "zh:890df766e9b839623b1f0437355032a3c006226a6c200cd911e15ee1a9014e9f",
-    "zh:966feb24cacc9031894c682dc5168397b8ef1db1c5872ef9d7af2a87ce6b120c",
-    "zh:9ef9b4347f9a1c8e821a80ee453f8c9df653f11f5a7b740ecf9980be2eb8a5bf",
-    "zh:a4c49f58b25a862b4031075930af8320115cfd30964bdfc94115e7a8ab38e2ad",
-    "zh:b739ab7f1413fae079d2f30b068c2d990b53f6fae697cb634ea6765c3a698ca1",
+    "zh:bccf92d132200aff9089fc56e92d17e03c45828468874f5c969fc6c960cb5983",
+    "zh:d312db4824450944713f16b38abbea9d3edad95525a18e6e82744aae8444116b",
+    "zh:dd4228305abd05ef16cfd9e3dbc970d534b06426102aa1d6a9eb30c1df41c736",
+    "zh:ec21a93b83921a3da30b26a4ca493f2f01a3c2d5a75931d83f292d3217cae5a5",
   ]
 }
