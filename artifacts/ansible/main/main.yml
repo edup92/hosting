@@ -106,3 +106,4 @@
           loop_control:
             label: "{{ item.item.value.domain }}"
           no_log: false
+          
