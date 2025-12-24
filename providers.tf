@@ -9,6 +9,10 @@ terraform {
 			source  = "cloudflare/cloudflare"
 			version = ">= 3.0"
 		}
+		uptimerobot = {
+      source  = "uptimerobot/uptimerobot"
+      version = "~> 1.2.3"
+		}
 	}
 }
 
@@ -17,4 +21,8 @@ provider "aws" {
 
 provider "cloudflare" {
 	api_token = var.cf_token
+}
+
+provider "uptimerobot" {
+  api_key = var.uptimerobot_token
 }
