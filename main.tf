@@ -390,27 +390,27 @@ resource "null_resource" "null_ansible_main" {
 #  keyword_value     = each.value.monitor_keyword
 #}
 
-resource "uptimerobot_monitor" "uptimerobot_main" {
-  for_each          = var.sites
-  name     = each.value.domain
-  type     = "KEYWORD"
-  url      = "https://${each.value.domain}"
-  interval = 900
+#resource "uptimerobot_monitor" "uptimerobot_main" {
+#  for_each          = var.sites
+#  name     = each.value.domain
+#  type     = "KEYWORD"
+#  url      = "https://${each.value.domain}"
+#  interval = 900
 
   # Look for "healthy" in the response
-  keyword_type  = "ALERT_NOT_EXISTS"
-  keyword_value     = trimspace(each.value.monitor_keyword)
+ # keyword_type  = "ALERT_NOT_EXISTS"
+ # keyword_value     = trimspace(each.value.monitor_keyword)
 
   # Case insensitive search (default)
-  keyword_case_type = "CaseInsensitive"
+ # keyword_case_type = "CaseInsensitive"
 
   # Set exact contacts and their semantics
-  assigned_alert_contacts = [
-    {
-      alert_contact_id = "6819028",
-      threshold        = 10,
-      recurrence       = 15
-    }
-  ]
+ # assigned_alert_contacts = [
+ #   {
+ #     alert_contact_id = "6819028",
+ #     threshold        = 10,
+ #     recurrence       = 15
+ #   }
+ # ]
 
-}
+#}

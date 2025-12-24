@@ -84,7 +84,7 @@
           command: >
             clpctl site:add:php
             --domainName={{ domain }}
-            --phpVersion=8.2
+            --phpVersion=8.4
             --vhostTemplate=Generic
             --siteUser={{ site_user }}
             --siteUserPassword={{ site_pass }}
