@@ -1,14 +1,6 @@
 
 
-echo "Created temporary SSH SG"
 
-# 7 - Assign temporary firewall
-
-echo "Assigning temporary SSH firewall"
-aws ec2 modify-instance-attribute \
-  --instance-id "$instance_id" \
-  --groups $INSTANCE_SGS "$SG_TEMP_ID"
-echo "Temporary SG applied."
 
 # 6 - Start ssh-agent
 

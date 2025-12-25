@@ -9,11 +9,43 @@ path_temp="$(mktemp -d)"
 path_playbook="$path_temp/main.yml"
 extravars_file="extravars.json"
 sg_tempssh_name="SG_TEMPSSH"
+instance_desired_state="running"
+instance_desired_state_sleep=3
+instance_desired_state_deadline=$((SECONDS + 120))
 
 # 2) Functions
 
 cleanup() { rm -rf "$path_temp"; }
 trap cleanup EXIT
+
+rollback() {
+  echo "Rollback: Restoring original instance security groups..."
+
+  aws ec2 modify-instance-attribute \
+    --instance-id "$instance_id" \
+    --groups $instance_sg_list \
+    >/dev/null 2>&1 || true
+
+  echo "OK: Original security groups restored on instance $instance_id"
+
+  echo "Checking if TEMPSSH SG exists..."
+
+  sg_tempssh_id="$(
+    aws ec2 describe-security-groups \
+      --filters "Name=vpc-id,Values=$vpc_id" "Name=group-name,Values=$sg_tempssh_name" \
+      --query 'SecurityGroups[0].GroupId' \
+      --output text
+  )"
+
+  if [[ -n "${sg_tempssh_id:-}" && "$sg_tempssh_id" != "None" ]]; then
+    echo "Rollback: SG TEMPSSH exists, removing"
+    aws ec2 delete-security-group --group-id "$sg_tempssh_id" >/dev/null 2>&1
+    echo "Rollback: SG TEMPSSH removed"
+  else
+    echo "Rollback: SG TEMPSSH does not exist. Skipping."
+  fi
+
+}
 
 # 3) Requirements (env, file, OS, binaries)
 
@@ -47,12 +79,19 @@ for v in "${required_env[@]}"; do
 done
 echo "OK: Required env vars present: ${required_env[*]}"
 
-if [[ -z "${extravars:-}" ]] || ! jq -e . >/dev/null 2>&1 <<<"$extravars"; then
-  echo "ERROR: extravars is missing/empty or not valid JSON." >&2
+if [[ -n "${extravars+x}" ]]; then
+  if [[ -z "${extravars:-}" ]] || ! jq -e . >/dev/null 2>&1 <<<"$extravars"; then
+    echo "ERROR: extravars exists but is empty or not valid JSON." >&2
+    exit 1
+  fi
+  echo "OK: extravars is valid JSON"
+fi
+
+if ! ssh-keygen -y -f <(printf '%s' "$instance_pem") >/dev/null 2>&1; then
+  echo "ERROR: instance_pem is not a valid private key (PEM)." >&2
   exit 1
 fi
-echo "OK: extravars is valid JSON"
-
+echo "OK: instance PEM is valid"
 
 # 4) Unzip, error if fails or main.yml not found
 
@@ -85,12 +124,14 @@ instance_json="$(aws ec2 describe-instances --instance-ids "$instance_id" --outp
   exit 1
 }
 
+instance_state="$(jq -r '.Reservations[0].Instances[0].State.Name // empty' <<<"$instance_json")"
 vpc_id="$(jq -r '.Reservations[0].Instances[0].VpcId // empty' <<<"$instance_json")"
 instance_ip="$(jq -r '.Reservations[0].Instances[0].PublicIpAddress // empty' <<<"$instance_json")"
-instance_sg_list="$(jq -r '.Reservations[0].Instances[0].SecurityGroups[].GroupId' <<<"$instance_json")"
+instance_sg_list="$(aws ec2 describe-instances --instance-ids "$instance_id" \
+  --query 'Reservations[0].Instances[0].SecurityGroups[].GroupId' --output text)"
 
-if [[ -z "${vpc_id:-}" || -z "${instance_ip:-}" || -z "${instance_sg_list:-}" ]]; then
-  echo "ERROR: Invalid instance data for $instance_id (vpc_id/ip/security_groups)." >&2
+if [[ -z "${instance_state:-}" || -z "${instance_ip:-}" || -z "${instance_sg_list:-}" ]]; then
+  echo "ERROR: Could not determine instance state for: $instance_id" >&2
   exit 1
 fi
 
@@ -142,6 +183,8 @@ else
   echo "OK: SG '$sg_tempssh_name' created ($sg_tempssh_id) with SSH ingress + allow-all egress."
 fi
 
+echo "OK: Created TempSSH SG"
+
 # 8) Extravars, generate if not found, if not empty, save to extravars_file
 
 if [[ "${extravars+x}" != "x" ]]; then
@@ -149,3 +192,63 @@ if [[ "${extravars+x}" != "x" ]]; then
 else
   printf '%s' "$extravars" | jq -S '.' >"$extravars_file"
 fi
+
+# 9) Set tempssh sg
+
+aws ec2 modify-instance-attribute \
+  --instance-id "$instance_id" \
+  --groups $instance_sg_list "$sg_tempssh_id" \
+  >/dev/null 2>&1
+
+# 10) Check instance state
+
+echo "Checking instance state"
+
+while [[ "$instance_state" != "$instance_desired_state" ]]; do
+  if (( SECONDS >= instance_desired_state_deadline )); then
+    echo "ERROR: Timeout waiting for instance '$instance_id' to reach state '$instance_desired_state' (last: '$instance_state')." >&2
+    rollback
+    exit 1
+  fi
+
+  echo "INFO: instance_state=$instance_state (waiting for $instance_desired_state)"
+  sleep "$instance_desired_state_sleep"
+
+  instance_state="$(
+    aws ec2 describe-instances --instance-ids "$instance_id" --output json \
+    | jq -r '.Reservations[0].Instances[0].State.Name // empty'
+  )"
+
+  if [[ -z "${instance_state:-}" ]]; then
+    echo "ERROR: Could not determine instance state for: $instance_id" >&2
+    rollback
+    exit 1
+  fi
+done
+
+echo "OK: Instance is in desired state: $instance_desired_state"
+
+echo "Checking SSH reachability"
+
+while :; do
+  if (( SECONDS >= instance_desired_state_deadline )); then
+    echo "ERROR: Timeout waiting for SSH on $instance_user@$instance_ip" >&2
+    rollback
+    exit 1
+  fi
+
+  if ssh \
+    -i <(printf '%s' "$instance_pem") \
+    -o BatchMode=yes \
+    -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null \
+    -o ConnectTimeout=5 \
+    "$instance_user@$instance_ip" "true" \
+    >/dev/null 2>&1; then
+    echo "OK: SSH reachable on $instance_user@$instance_ip"
+    break
+  fi
+
+  echo "INFO: SSH not reachable yet on $instance_user@$instance_ip (retrying)"
+  sleep "$instance_desired_state_sleep"
+done
