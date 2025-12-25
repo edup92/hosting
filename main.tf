@@ -393,6 +393,8 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
   assigned_alert_contacts = [
     {
       alert_contact_id = var.uptimerobot_contactid
+      threshold        = 10,
+      recurrence       = 15
     }
   ]
 }
