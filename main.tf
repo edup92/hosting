@@ -383,7 +383,7 @@ resource "null_resource" "null_ansible_main" {
 
 resource "uptimerobot_monitor" "uptimerobot_main" {
   for_each          = var.sites
-  name              = regex("^([^.]+)", each.value.domain)
+  name              = split(".", each.value.domain)[0]
   type              = "KEYWORD"
   url               = "https://${each.value.domain}"
   interval          = 900
