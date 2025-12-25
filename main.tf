@@ -388,7 +388,7 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
   url               = "https://${each.value.domain}"
   interval          = 900
   keyword_type      = "ALERT_NOT_EXISTS"
-  keyword_value     = trimspace(each.value.monitor_keyword)
+  keyword_value     = "test"
   assigned_alert_contacts = [
     {
       alert_contact_id = "6819028",
