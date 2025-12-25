@@ -115,14 +115,11 @@ jobs:
           name: tf_secrets
           path: tf_secrets.json
 
-  prepare-artifacts:
+  prepare-src:
     runs-on: ubuntu-latest
     env:
-      BUILD_DIR: build
-      ARTIFACTS_DIR: artifacts
-      LAMBDA_DIR: lambda
-      PYTHON_DIR: python
-      NODEJS_DIR: nodejs
+      LAMBDA_DIR: "./src/lambda"
+      ANSIBLE_DIR: "./src/ansible"     
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -138,7 +135,7 @@ jobs:
         id: cache-artifacts-python
         uses: actions/cache@v4
         with:
-          path: ${{ env.BUILD_DIR }}/${{ env.LAMBDA_DIR }}/${{ env.PYTHON_DIR }}/**/packages
+          path: ${{ env.LAMBDA_DIR }}/${{ env.PYTHON_DIR }}/**/packages
           key: ${{ runner.os }}-lambda-python-${{ hashFiles('build/lambda/**') }}
           restore-keys: |
             ${{ runner.os }}-lambda-python-artifacts-
@@ -146,14 +143,14 @@ jobs:
         id: cache-artifacts-nodejs
         uses: actions/cache@v4
         with:
-          path: ${{ env.BUILD_DIR }}/${{ env.LAMBDA_DIR }}/${{ env.NODEJS_DIR }}/**/node_modules
+          path: ${{ env.LAMBDA_DIR }}/${{ env.NODEJS_DIR }}/**/node_modules
           key: ${{ runner.os }}-lambda-node-${{ hashFiles('build/lambda/**') }}
           restore-keys: |
             ${{ runner.os }}-lambda-node-artifacts-
       - name: Build lambda python
         if: steps.cache-artifacts-python.outputs.cache-hit != 'true'
         run: |
-          for d in "$BUILD_DIR/$LAMBDA_DIR/$PYTHON_DIR"/*; do
+          for d in "$SRC_DIR/$LAMBDA_DIR/$PYTHON_DIR"/*; do
             if [[ -f "$d/requirements.txt" ]]; then
               echo "Building python lambda $(basename "$d")"
               mkdir -p "$d/packages"
@@ -166,7 +163,7 @@ jobs:
       - name: Build lambda nodejs
         if: steps.cache-artifacts-nodejs.outputs.cache-hit != 'true'
         run: |
-          for d in "$BUILD_DIR/$LAMBDA_DIR/$NODEJS_DIR"/*; do
+          for d in "$SRC_DIR/$LAMBDA_DIR/$NODEJS_DIR"/*; do
             if [[ -f "$d/package.json" ]]; then
               echo "Building node lambda $(basename "$d")"
               (cd "$d" && npm ci --omit=dev)
@@ -175,11 +172,21 @@ jobs:
               echo "Skipped node lambda $(basename "$d") (no package.json)"
             fi
           done
-      - name: Upload artifacts
+      - name: Pack ansible
+        if: steps.cache-artifacts-nodejs.outputs.cache-hit != 'true'
+        run: |
+          for d in "${ANSIBLE_DIR%/}/"*/; do
+            name="$(basename "${d%/}")"
+            echo "Packing ansible folder: ${name}"
+            # Crea un zip por carpeta (contenido de la carpeta, no la carpeta contenedora)
+            (cd "$d" && zip -r -q "${GITHUB_WORKSPACE}/build/ansible/${name}.zip" .)
+            echo "Packed: build/ansible/${name}.zip"
+          done
+      - name: Upload src
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts
-          path: build
+          name: src
+          path: src
 
   generate-modules:
     runs-on: ubuntu-latest
@@ -368,11 +375,11 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - approbal
-      - prepare-artifacts
+      - prepare-src
     if: ${{ needs.approbal.result == 'success' }}
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
-      ARTIFACTS_DIR: "./artifacts"
+      SRC_DIR: "./src"
       SCRIPTS_DIR: "./scripts"
       MODULES_DIR: "./modules"
     steps:
@@ -384,6 +391,8 @@ jobs:
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
       - name: Create modules dir
         run: mkdir -p "${MODULES_DIR}"
+      - name: Remove src content
+        run: rm -rf "${SRC_DIR}/*"
       - name: Set execute permissions for scripts
         run: |
           if [ -d $SCRIPTS_DIR ]; then
@@ -413,11 +422,11 @@ jobs:
         with:
           name: tfplan
           path: ""
-      - name: Download artifacts
+      - name: Download src
         uses: actions/download-artifact@v4
         with:
-          name: artifacts
-          path: ${{ env.ARTIFACTS_DIR }}
+          name: src
+          path: ${{ env.SRC_DIR }}
       - name: Download modules
         uses: actions/download-artifact@v4
         with:

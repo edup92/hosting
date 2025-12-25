@@ -257,7 +257,7 @@ resource "aws_lambda_function" "lambda_cfupdater" {
   role          = aws_iam_role.role_cfupdater.arn
   handler       = "main.lambda_handler"
   runtime       = local.lambda_runtime
-  filename      = "./artifacts/lambda/cfupdater.zip"
+  filename      = "./src/lambda/cfupdater.zip"
   environment {
     variables = {
       SG_ID = aws_security_group.sg_main.id
@@ -353,26 +353,25 @@ resource "aws_iam_role_policy_attachment" "policyattach_bucket_backup" {
 
 # Playbook
 
-resource "null_resource" "null_ansible_main" {
+resource "null_resource" "null_ansible_stack" {
   depends_on = [
     aws_instance.instance_main,
     tls_private_key.pem_ssh
   ]
   triggers = {
     instance_id   = aws_instance.instance_main.id
-    ansible_tree_sha  = local.ansible_tree_sha
+    playbook_file  = filesha256("./src/ansible/stack.zip")
   }
   provisioner "local-exec" {
     environment = {
-      INSTANCE_ID    = aws_instance.instance_main.id
-      INSTANCE_USER  = local.instance_user
-      INSTANCE_SSH_KEY = nonsensitive(tls_private_key.pem_ssh.private_key_pem)
-      EXTRAVARS = jsonencode({
+      instance_id    = aws_instance.instance_main.id
+      instance_user  = local.instance_user
+      instance_pem = nonsensitive(tls_private_key.pem_ssh.private_key_pem)
+      extravars = jsonencode({
         sites = var.sites
       })
-      PLAYBOOK_PATH = local.ansible_path
     }
-    command = local.script_ansible
+    command = "${local.script_ansible} ./src/ansible/stack.zip"
   }
 }
 
@@ -402,16 +401,14 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
 
 resource "null_resource" "null_uptimerobot" {
   triggers = {
-    ansible_tree_sha  = local.ansible_tree_sha
+    playbook_file  = filesha256("./src/ansible/uptimerobot.zip")
   }
   provisioner "local-exec" {
     environment = {
-      EXTRAVARS = jsonencode({
-        uptimerobot_token = var.uptimerobot_token
-        uptimerobot_contactid = var.uptimerobot_contactid
-        sites = var.sites
-      })
-      PLAYBOOK_PATH = local.ansible_path
+      uptimerobot_token = var.uptimerobot_token
+      uptimerobot_contactid = var.uptimerobot_contactid
+      sites = var.sites
+      playbook_file = "./src/ansible/uptimerobot.zip"
     }
     command = local.script_ansible
   }

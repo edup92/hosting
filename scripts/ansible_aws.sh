@@ -4,14 +4,13 @@ set -euo pipefail
 # Variable validation
 
 required_vars=(
-  PLAYBOOK_PATH
-  INSTANCE_ID
-  INSTANCE_USER
-  INSTANCE_SSH_KEY
+  playbook_zip
+  instance_id
+  instance_user
+  instance_pem
 )
-MAIN_PLAYBOOK="$PLAYBOOK_PATH/main.yml"
+
 INSTANCE_STATUS=0
-INSTALLED_FLAG="/var/local/.installed"
 VPC_ID="$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text)"
 SG_NAME="SG_TEMPSSH"
 missing_vars=()
@@ -63,11 +62,11 @@ fi
 
 # 5 - Get instance data
 
-INSTANCE_IP="$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+INSTANCE_IP="$(aws ec2 describe-instances --instance-ids "$instance_id" \
   --query "Reservations[0].Instances[0].NetworkInterfaces[0].Association.PublicIp || Reservations[0].Instances[0].PublicIpAddress" \
   --output text)"
 
-INSTANCE_SGS="$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+INSTANCE_SGS="$(aws ec2 describe-instances --instance-ids "$instance_id" \
   --query 'Reservations[0].Instances[0].SecurityGroups[].GroupId' \
   --output text)"
 
@@ -110,14 +109,14 @@ echo "Created temporary SSH SG"
 
 echo "Assigning temporary SSH firewall"
 aws ec2 modify-instance-attribute \
-  --instance-id "$INSTANCE_ID" \
+  --instance-id "$instance_id" \
   --groups $INSTANCE_SGS "$SG_TEMP_ID"
 echo "Temporary SG applied."
 
 # 6 - Start ssh-agent
 
 eval "$(ssh-agent -s)"
-ssh-add <(printf "%s" "$INSTANCE_SSH_KEY")
+ssh-add <(printf "%s" "$instance_pem")
 echo "SSH key loaded into ssh-agent (memory only)"
 
 # 7 - Wait for instance to up
@@ -129,7 +128,7 @@ for i in {1..14}; do
       -o ConnectTimeout=3 \
       -o StrictHostKeyChecking=no \
       -o UserKnownHostsFile=/dev/null \
-      "$INSTANCE_USER@$INSTANCE_IP" 'exit' >/dev/null 2>&1 && {
+      "$instance_user@$INSTANCE_IP" 'exit' >/dev/null 2>&1 && {
         echo "SSH available."
         INSTANCE_STATUS=1
         break
@@ -141,7 +140,7 @@ done
 if [ "$INSTANCE_STATUS" -ne 1 ]; then
   echo "ERROR: Instance unreachable, restoring firewall"
   aws ec2 modify-instance-attribute \
-  --instance-id "$INSTANCE_ID" \
+  --instance-id "$instance_id" \
   --groups $INSTANCE_SGS
   exit 1
 fi
@@ -153,8 +152,8 @@ echo "Running main.yml playbook"
 ansible-playbook \
   -i "${INSTANCE_IP}," \
   -e ansible_python_interpreter=/usr/bin/python3 \
-  --user "$INSTANCE_USER" \
-  "${ANSIBLE_EXTRA_VARS_ARGS[@]}" \
+  --user "$instance_user" \
+  -e @vars.json \
   --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
   "$MAIN_PLAYBOOK"
 
@@ -165,7 +164,7 @@ echo "Running main.yml playbook finished"
 echo "Restoring firewall"
 
 aws ec2 modify-instance-attribute \
-  --instance-id "$INSTANCE_ID" \
+  --instance-id "$instance_id" \
   --groups $INSTANCE_SGS
 
 # 10 - Cleanup

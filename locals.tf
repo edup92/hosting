@@ -39,20 +39,12 @@ locals {
   # S3
   s3_backup_name = "${var.project_name}-s3-backup-main"
 
-  # Ansible
+  # Scripts
+
   script_ansible        = "./scripts/ansible_aws.sh"
-  ansible_path          = "./artifacts/ansible/main/"
-
-  ansible_dir_rel = trimsuffix(trimprefix(local.ansible_path, "./"), "/")
-  ansible_files = sort(fileset(path.module, "${local.ansible_dir_rel}/**"))
-  ansible_tree_sha = sha256(join("\n", [
-    for f in local.ansible_files :
-    "${f}:${filesha256("${path.module}/${f}")}"
-  ]))
-
+  script_uptimerobot        = "./scripts/uptimerobot.sh"
   # Uptimerobot
 
-  script_uptimerobot        = "./scripts/uptimerobot.sh"
-  uptimerobot_path          = "./artifacts/ansible/uptimerobot/"
+  uptimerobot_path          = "./src/ansible/uptimerobot.zip"
 
 }
