@@ -388,6 +388,7 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
   url               = "https://${each.value.domain}"
   interval          = 900
   keyword_type      = "ALERT_NOT_EXISTS"
+  keyword_case_type = "CaseSensitive"
   keyword_value     = "test"
   assigned_alert_contacts = [
     {
