@@ -383,7 +383,7 @@ resource "null_resource" "null_ansible_main" {
 
 resource "uptimerobot_monitor" "uptimerobot_main" {
   for_each          = var.sites
-  name              = each.value.domain
+  name              = regex("^([^.]+)", each.value.domain)
   type              = "KEYWORD"
   url               = "https://${each.value.domain}"
   interval          = 900
@@ -392,10 +392,7 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
   keyword_value     = "test"
   assigned_alert_contacts = [
     {
-      alert_contact_id = "6819028",
-      threshold        = 10,
-      recurrence       = 15
+      alert_contact_id = var.uptimerobot_contactid
     }
   ]
 }
-

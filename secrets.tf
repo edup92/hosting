@@ -10,6 +10,12 @@ variable "uptimerobot_token" {
 	sensitive = true
 }
 
+variable "uptimerobot_contactid" {
+	description = "Uptimerobot Contact ID"
+	type        = string
+	sensitive = true
+}
+
 variable "admin_ip" {
 	description = "Admin IP Access"
 	type        = string
