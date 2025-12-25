@@ -14,6 +14,14 @@ variable "uptimerobot_contactid" {
 	type        = string
 }
 
+variable "uptimerobot_contactid" {
+	description = "Mapa de contactsid"
+	type = map(object({
+		email = string
+		call = string
+	}))
+}
+
 variable "admin_ip" {
 	description = "Admin IP Access"
 	type        = string
