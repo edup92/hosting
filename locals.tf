@@ -7,6 +7,7 @@ locals {
   instanceprofile_name  = "${var.project_name}-instanceprofile-main"
   instance_disk_type    = "gp3"
   instance_ami          = "ami-0afadb98a5a7f1807"
+  instance_user         = "ubuntu"
 
   # Secrets
   secret_pem_ssh = "${var.project_name}-secret-pem-ssh"
@@ -41,11 +42,17 @@ locals {
   # Ansible
   script_ansible        = "./scripts/ansible_aws.sh"
   ansible_path          = "./artifacts/ansible/main/"
-  ansible_user          = "ubuntu"
+
   ansible_dir_rel = trimsuffix(trimprefix(local.ansible_path, "./"), "/")
   ansible_files = sort(fileset(path.module, "${local.ansible_dir_rel}/**"))
   ansible_tree_sha = sha256(join("\n", [
     for f in local.ansible_files :
     "${f}:${filesha256("${path.module}/${f}")}"
   ]))
+
+  # Uptimerobot
+
+  script_uptimerobot        = "./scripts/uptimerobot.sh"
+  uptimerobot_path          = "./artifacts/ansible/uptimerobot/"
+
 }

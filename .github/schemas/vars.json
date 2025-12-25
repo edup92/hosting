@@ -24,13 +24,25 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["domain", "monitor_keyword"],
+        "required": ["name", "domain", "monitor_keyword", "user_password", "db_password"],
         "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
           "domain": {
             "type": "string",
             "minLength": 1
           },
           "monitor_keyword": {
+            "type": "string",
+            "minLength": 1
+          },
+          "user_password": {
+            "type": "string",
+            "minLength": 1
+          },
+          "db_password": {
             "type": "string",
             "minLength": 1
           }

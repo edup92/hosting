@@ -7,13 +7,11 @@ variable "cf_token" {
 variable "uptimerobot_token" {
 	description = "Uptimerobot Token"
 	type        = string
-	sensitive = true
 }
 
 variable "uptimerobot_contactid" {
 	description = "Uptimerobot Contact ID"
 	type        = string
-	sensitive = true
 }
 
 variable "admin_ip" {

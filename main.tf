@@ -355,7 +355,8 @@ resource "aws_iam_role_policy_attachment" "policyattach_bucket_backup" {
 
 resource "null_resource" "null_ansible_main" {
   depends_on = [
-    aws_instance.instance_main
+    aws_instance.instance_main,
+    tls_private_key.pem_ssh
   ]
   triggers = {
     instance_id   = aws_instance.instance_main.id
@@ -364,7 +365,7 @@ resource "null_resource" "null_ansible_main" {
   provisioner "local-exec" {
     environment = {
       INSTANCE_ID    = aws_instance.instance_main.id
-      INSTANCE_USER  = local.ansible_user
+      INSTANCE_USER  = local.instance_user
       INSTANCE_SSH_KEY = nonsensitive(tls_private_key.pem_ssh.private_key_pem)
       EXTRAVARS = jsonencode({
         sites = var.sites
@@ -397,4 +398,21 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
       recurrence       = 15
     }
   ]
+}
+
+resource "null_resource" "null_uptimerobot" {
+  triggers = {
+    ansible_tree_sha  = local.ansible_tree_sha
+  }
+  provisioner "local-exec" {
+    environment = {
+      EXTRAVARS = jsonencode({
+        uptimerobot_token = var.uptimerobot_token
+        uptimerobot_contactid = var.uptimerobot_contactid
+        sites = var.sites
+      })
+      PLAYBOOK_PATH = local.ansible_path
+    }
+    command = local.script_ansible
+  }
 }

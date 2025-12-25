@@ -16,7 +16,10 @@ variable "instance_disk_size" {
 variable "sites" {
 	description = "Mapa de sitios con dominio y palabra clave de monitorización"
 	type = map(object({
+		name = string
 		domain = string
 		monitor_keyword = string
+		user_password = string
+		db_password = string
 	}))
 }
