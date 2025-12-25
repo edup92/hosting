@@ -389,7 +389,7 @@ resource "uptimerobot_monitor" "uptimerobot_main" {
   interval          = 900
   keyword_type      = "ALERT_NOT_EXISTS"
   keyword_case_type = "CaseSensitive"
-  keyword_value     = "test"
+  keyword_value     = trimspace(each.value.monitor_keyword)
   assigned_alert_contacts = [
     {
       alert_contact_id = var.uptimerobot_contactid
