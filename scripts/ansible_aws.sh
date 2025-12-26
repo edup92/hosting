@@ -7,7 +7,8 @@ required_bin=(unzip jq aws ansible)
 required_env=(instance_id instance_user instance_pem)
 path_temp="$(mktemp -d)"
 path_playbook="$path_temp/main.yml"
-extravars_file="extravars.json"
+instance_path="$path_temp/instance.pem"
+extravars_file="$path_temp/extravars.json"
 sg_tempssh_name="SG_TEMPSSH"
 instance_desired_state="running"
 instance_desired_state_sleep=3
@@ -15,6 +16,17 @@ instance_desired_state_deadline=$((SECONDS + 120))
 
 # 2) Functions
 
+cleanup() {
+  echo "Restoring original SG"
+  aws ec2 modify-instance-attribute \
+    --instance-id "$instance_id" \
+    --groups $instance_sg_list \
+    >/dev/null 2>&1 || true
+  echo "Restored original SG"
+  rm -rf "$path_temp" || true
+  echo "Removed temp path $path_temp"
+}
+trap cleanup EXIT
 
 # 3) Requirements (env, file, OS, binaries)
 
@@ -158,6 +170,8 @@ echo "OK: Created TempSSH SG"
 
 if [[ "${extravars+x}" == "x" ]]; then
   printf '%s' "$extravars" | jq -S '.' >"$extravars_file"
+else
+  jq -n '{}' >"$extravars_file"
 fi
 
 # 9) Set tempssh sg
@@ -167,40 +181,7 @@ aws ec2 modify-instance-attribute \
   --groups $instance_sg_list "$sg_tempssh_id" \
   >/dev/null 2>&1
 
-# 10) Check instance state
-
-echo "Checking instance state"
-
-while [[ "$instance_state" != "$instance_desired_state" ]]; do
-  if (( SECONDS >= instance_desired_state_deadline )); then
-    echo "ERROR: Timeout waiting for instance '$instance_id' to reach state '$instance_desired_state' (last: '$instance_state')." >&2
-    echo "Restoring original SG"
-    aws ec2 modify-instance-attribute \
-      --instance-id "$instance_id" \
-      --groups $instance_sg_list \
-      >/dev/null 2>&1
-    echo "Restored original SG"
-    rm -rf "$path_temp"
-    echo "Removed temp path $path_temp"
-    echo "Finished script"
-    exit 1
-  fi
-
-  echo "INFO: instance_state=$instance_state (waiting for $instance_desired_state)"
-  sleep "$instance_desired_state_sleep"
-
-  instance_state="$(
-    aws ec2 describe-instances --instance-ids "$instance_id" --output json \
-    | jq -r '.Reservations[0].Instances[0].State.Name // empty'
-  )"
-
-  if [[ -z "${instance_state:-}" ]]; then
-    echo "ERROR: Could not determine instance state for: $instance_id" >&2
-    exit 1
-  fi
-done
-
-echo "OK: Instance is in desired state: $instance_desired_state"
+# 10) Check SSH reachability
 
 echo "Checking SSH reachability"
 
@@ -235,6 +216,12 @@ while :; do
   sleep "$instance_desired_state_sleep"
 done
 
+# 12) Prepare ssh
+
+ssh-keyscan -H "$instance_ip" >"$path_temp/known_hosts" 2>/dev/null || true
+printf '%s' "$instance_pem" >"$instance_path"
+chmod 600 "$instance_path"
+
 # 11) Run playbook
 
 echo "Running main.yml playbook"
@@ -244,11 +231,13 @@ ansible-playbook \
   -e ansible_python_interpreter=/usr/bin/python3 \
   --user "$instance_user" \
   -e @"$extravars_file" \
-  --private-key <(printf '%s' "$instance_pem") \
-  --ssh-extra-args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+  --private-key "$instance_path" \
+  --ssh-extra-args="-o StrictHostKeyChecking=yes -o UserKnownHostsFile=$path_temp/known_hosts" \
   "$path_playbook"
+  
+ansible_rc=$?
 
-echo "Running main.yml playbook finished"
+echo "Running main.yml playbook finished (rc=$ansible_rc)"
 
 echo "Restoring original SG"
 aws ec2 modify-instance-attribute \
@@ -260,4 +249,4 @@ rm -rf "$path_temp"
 echo "Removed temp path $path_temp"
 echo "Finished script"
 
-exit 0
+exit "$ansible_rc"
