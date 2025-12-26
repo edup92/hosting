@@ -3,7 +3,7 @@
 # 1) Arguments
 
 path_zip="${1:-}"
-required_bin=(unzip jq aws ansible)
+required_bin=(curl ssh ssh-keygen ssh-keyscan grep unzip jq aws ansiblee)
 required_env=(instance_id instance_user instance_pem)
 path_temp="$(mktemp -d)"
 path_playbook="$path_temp/main.yml"
@@ -142,7 +142,8 @@ else
       --output text
   )"
 
-  runner_ipv4="$(curl -fsS https://checkip.amazonaws.com | tr -d '\n')"
+  runner_ipv4="$(curl -fsS https://checkip.amazonaws.com
+  )"
   if [[ -z "${runner_ipv4:-}" ]]; then
     echo "ERROR: Could not determine runner public IPv4." >&2
     exit 1
@@ -183,7 +184,13 @@ aws ec2 modify-instance-attribute \
   --groups $instance_sg_list "$sg_tempssh_id" \
   >/dev/null 2>&1
 
-# 10) Check SSH reachability
+# 10) Prepare ssh
+
+ssh-keyscan -H "$instance_ip" >"$path_temp/known_hosts" 2>/dev/null || true
+printf '%s' "$instance_pem" >"$instance_path"
+chmod 600 "$instance_path"
+
+# 11) Check SSH reachability
 
 echo "Checking SSH reachability"
 
@@ -203,7 +210,7 @@ while :; do
   fi
 
   if ssh \
-    -i <(printf '%s' "$instance_pem") \
+    -i "$instance_path" \
     -o BatchMode=yes \
     -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null \
@@ -218,13 +225,7 @@ while :; do
   sleep "$instance_waiter_sleep"
 done
 
-# 12) Prepare ssh
-
-ssh-keyscan -H "$instance_ip" >"$path_temp/known_hosts" 2>/dev/null || true
-printf '%s' "$instance_pem" >"$instance_path"
-chmod 600 "$instance_path"
-
-# 11) Run playbook
+# 12) Run playbook
 
 echo "Running main.yml playbook"
 
