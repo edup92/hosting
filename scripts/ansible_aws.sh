@@ -10,9 +10,8 @@ path_playbook="$path_temp/main.yml"
 instance_path="$path_temp/instance.pem"
 extravars_file="$path_temp/extravars.json"
 sg_tempssh_name="SG_TEMPSSH"
-instance_desired_state="running"
-instance_desired_state_sleep=3
-instance_desired_state_deadline=$((SECONDS + 120))
+instance_waiter_sleep=3
+instance_waiter_deadline=$((SECONDS + 120))
 
 # 2) Functions
 
@@ -143,25 +142,28 @@ else
       --output text
   )"
 
+  runner_ipv4="$(curl -fsS https://checkip.amazonaws.com | tr -d '\n')"
+  if [[ -z "${runner_ipv4:-}" ]]; then
+    echo "ERROR: Could not determine runner public IPv4." >&2
+    exit 1
+  fi
+
   aws ec2 authorize-security-group-ingress \
     --group-id "$sg_tempssh_id" \
     --ip-permissions '[
-      {"IpProtocol":"tcp","FromPort":22,"ToPort":22,"IpRanges":[{"CidrIp":"0.0.0.0/0","Description":"SSH anywhere IPv4"}]},
-      {"IpProtocol":"tcp","FromPort":22,"ToPort":22,"Ipv6Ranges":[{"CidrIpv6":"::/0","Description":"SSH anywhere IPv6"}]}
+      {"IpProtocol":"tcp","FromPort":22,"ToPort":22,"IpRanges":[{"CidrIp":"${runner_ipv4}/32","Description":"Access IP"}]}
     ]' \
     >/dev/null 2>&1
 
   aws ec2 authorize-security-group-egress \
     --group-id "$sg_tempssh_id" \
-    --ip-permissions '[{"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0","Description":"All outbound IPv4"}]}]' \
+    --ip-permissions '[
+      {"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0","Description":""All outbound IPv4"}]},
+      {"IpProtocol":"-1","Ipv6Ranges":[{"CidrIpv6":"::/0","Description":""All outbound IPv6"}]}
+    ]' \
     >/dev/null 2>&1 || true
 
-  aws ec2 authorize-security-group-egress \
-    --group-id "$sg_tempssh_id" \
-    --ip-permissions '[{"IpProtocol":"-1","Ipv6Ranges":[{"CidrIpv6":"::/0","Description":"All outbound IPv6"}]}]' \
-    >/dev/null 2>&1 || true
-
-  echo "OK: SG '$sg_tempssh_name' created ($sg_tempssh_id) with SSH ingress + allow-all egress."
+  echo "OK: SG tempSSH created"
 fi
 
 echo "OK: Created TempSSH SG"
@@ -186,7 +188,7 @@ aws ec2 modify-instance-attribute \
 echo "Checking SSH reachability"
 
 while :; do
-  if (( SECONDS >= instance_desired_state_deadline )); then
+  if (( SECONDS >= instance_waiter_deadline )); then
     echo "ERROR: Timeout waiting for SSH on $instance_user@$instance_ip" >&2
     echo "Restoring original SG"
     aws ec2 modify-instance-attribute \
@@ -213,7 +215,7 @@ while :; do
   fi
 
   echo "INFO: SSH not reachable yet on $instance_user@$instance_ip (retrying)"
-  sleep "$instance_desired_state_sleep"
+  sleep "$instance_waiter_sleep"
 done
 
 # 12) Prepare ssh
@@ -234,7 +236,7 @@ ansible-playbook \
   --private-key "$instance_path" \
   --ssh-extra-args="-o StrictHostKeyChecking=yes -o UserKnownHostsFile=$path_temp/known_hosts" \
   "$path_playbook"
-  
+
 ansible_rc=$?
 
 echo "Running main.yml playbook finished (rc=$ansible_rc)"
