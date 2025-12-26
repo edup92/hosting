@@ -7,7 +7,7 @@ required_bin=(curl ssh ssh-keygen ssh-keyscan grep unzip jq aws ansible)
 required_env=(instance_id instance_user instance_pem)
 path_temp="$(mktemp -d)"
 path_playbook="$path_temp/main.yml"
-instance_path="$path_temp/instance.pem"
+pem_path="$path_temp/instance.pem"
 extravars_file="$path_temp/extravars.json"
 sg_tempssh_name="SG_TEMPSSH"
 instance_waiter_sleep=3
@@ -67,7 +67,7 @@ if [[ "${extravars+x}" == "x" ]]; then
   echo "OK: extravars is valid JSON"
 fi
 
-if ! ssh-keygen -y -f "$instance_path" >/dev/null 2>&1; then
+if ! ssh-keygen -y -f <(printf '%s' "$instance_pem") >/dev/null 2>&1; then
   echo "ERROR: instance_pem is not a valid private key (PEM)." >&2
   exit 1
 fi
@@ -187,8 +187,8 @@ aws ec2 modify-instance-attribute \
 # 10) Prepare ssh
 
 ssh-keyscan -H "$instance_ip" >"$path_temp/known_hosts" 2>/dev/null || true
-printf '%s' "$instance_pem" >"$instance_path"
-chmod 600 "$instance_path"
+printf '%s' "$instance_pem" >"$pem_path"
+chmod 600 "$pem_path"
 
 # 11) Check SSH reachability
 
@@ -210,7 +210,7 @@ while :; do
   fi
 
   if ssh \
-    -i "$instance_path" \
+    -i "$pem_path" \
     -o BatchMode=yes \
     -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null \
@@ -234,7 +234,7 @@ ansible-playbook \
   -e ansible_python_interpreter=/usr/bin/python3 \
   --user "$instance_user" \
   -e @"$extravars_file" \
-  --private-key "$instance_path" \
+  --private-key "$pem_path" \
   --ssh-extra-args="-o StrictHostKeyChecking=yes -o UserKnownHostsFile=$path_temp/known_hosts" \
   "$path_playbook"
 
