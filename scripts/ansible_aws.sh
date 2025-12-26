@@ -48,7 +48,7 @@ for v in "${required_env[@]}"; do
 done
 echo "OK: Required env vars present: ${required_env[*]}"
 
-if [[ -n "${extravars+x}" ]]; then
+if [[ "${extravars+x}" == "x" ]]; then
   if [[ -z "${extravars:-}" ]] || ! jq -e . >/dev/null 2>&1 <<<"$extravars"; then
     echo "ERROR: extravars exists but is empty or not valid JSON." >&2
     exit 1
@@ -135,7 +135,7 @@ else
     --group-id "$sg_tempssh_id" \
     --ip-permissions '[
       {"IpProtocol":"tcp","FromPort":22,"ToPort":22,"IpRanges":[{"CidrIp":"0.0.0.0/0","Description":"SSH anywhere IPv4"}]},
-      {"IpProtocol":"tcp","FromPort":22,"FromPort":22,"ToPort":22,"Ipv6Ranges":[{"CidrIpv6":"::/0","Description":"SSH anywhere IPv6"}]}
+      {"IpProtocol":"tcp","FromPort":22,"ToPort":22,"Ipv6Ranges":[{"CidrIpv6":"::/0","Description":"SSH anywhere IPv6"}]}
     ]' \
     >/dev/null 2>&1
 
@@ -156,9 +156,7 @@ echo "OK: Created TempSSH SG"
 
 # 8) Extravars, generate if not found, if not empty, save to extravars_file
 
-if [[ "${extravars+x}" != "x" ]]; then
-  jq -n '{}' >"$extravars_file"
-else
+if [[ "${extravars+x}" == "x" ]]; then
   printf '%s' "$extravars" | jq -S '.' >"$extravars_file"
 fi
 
@@ -182,7 +180,7 @@ while [[ "$instance_state" != "$instance_desired_state" ]]; do
       --groups $instance_sg_list \
       >/dev/null 2>&1
     echo "Restored original SG"
-    rm -rf path_temp
+    rm -rf "$path_temp"
     echo "Removed temp path $path_temp"
     echo "Finished script"
     exit 1
@@ -215,7 +213,7 @@ while :; do
       --groups $instance_sg_list \
       >/dev/null 2>&1
     echo "Restored original SG"
-    rm -rf path_temp
+    rm -rf "$path_temp"
     echo "Removed temp path $path_temp"
     echo "Finished script"
     exit 1
@@ -258,8 +256,8 @@ aws ec2 modify-instance-attribute \
   --groups $instance_sg_list \
   >/dev/null 2>&1
 echo "Restored original SG"
-rm -rf path_temp
+rm -rf "$path_temp"
 echo "Removed temp path $path_temp"
 echo "Finished script"
 
-exit 1
+exit 0
