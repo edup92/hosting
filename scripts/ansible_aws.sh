@@ -150,16 +150,16 @@ else
 
   aws ec2 authorize-security-group-ingress \
     --group-id "$sg_tempssh_id" \
-    --ip-permissions '[
-      {"IpProtocol":"tcp","FromPort":22,"ToPort":22,"IpRanges":[{"CidrIp":"${runner_ipv4}/32","Description":"Access IP"}]}
-    ]' \
+    --protocol tcp \
+    --port 22 \
+    --cidr "${runner_ipv4}/32" \
     >/dev/null 2>&1
 
   aws ec2 authorize-security-group-egress \
     --group-id "$sg_tempssh_id" \
     --ip-permissions '[
-      {"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0","Description":""All outbound IPv4"}]},
-      {"IpProtocol":"-1","Ipv6Ranges":[{"CidrIpv6":"::/0","Description":""All outbound IPv6"}]}
+      {"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0","Description":"All outbound IPv4"}]},
+      {"IpProtocol":"-1","Ipv6Ranges":[{"CidrIpv6":"::/0","Description":"All outbound IPv6"}]}
     ]' \
     >/dev/null 2>&1 || true
 
