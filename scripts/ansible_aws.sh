@@ -122,8 +122,6 @@ if ! ssh-keygen -y -f "$pem_path" >/dev/null 2>&1; then
 fi
 echo "OK: instance PEM is valid"
 
-ssh-keyscan -H "$instance_ip" >"$path_temp/known_hosts" 2>/dev/null || true
-
 # 8) Create tempssh SG
 
 echo "Checking temporary SSH SG"
@@ -225,6 +223,10 @@ while :; do
   echo "INFO: SSH not reachable yet on $instance_user@$instance_ip (retrying)"
   sleep "$instance_waiter_sleep"
 done
+
+# 12) KeySSH
+
+ssh-keyscan -H "$instance_ip" >"$path_temp/known_hosts" 2>/dev/null || true
 
 # 12) Run playbook
 
