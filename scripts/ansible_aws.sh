@@ -67,12 +67,6 @@ if [[ "${extravars+x}" == "x" ]]; then
   echo "OK: extravars is valid JSON"
 fi
 
-if ! ssh-keygen -y -f <(printf '%s' "$instance_pem") >/dev/null 2>&1; then
-  echo "ERROR: instance_pem is not a valid private key (PEM)." >&2
-  exit 1
-fi
-echo "OK: instance PEM is valid"
-
 # 4) Unzip, error if fails or main.yml not found
 
 echo "Unziping playbook"
@@ -84,7 +78,20 @@ fi
 
 echo "OK: playbook unzipped and contains main.yml"
 
-# 5) Check aws access
+# 5) Prepare ssh
+
+printf '%s' "$instance_pem" >"$pem_path"
+chmod 600 "$pem_path"
+
+if ! ssh-keygen -y -f "$pem_path" >/dev/null 2>&1; then
+  echo "ERROR: instance_pem is not a valid private key (PEM)." >&2
+  exit 1
+fi
+echo "OK: instance PEM is valid"
+
+ssh-keyscan -H "$instance_ip" >"$path_temp/known_hosts" 2>/dev/null || true
+
+# 6) Check aws access
 
 echo "Checking aws credentials"
 
@@ -95,7 +102,7 @@ fi
 
 echo "OK: AWS credentials OK"
 
-# 6) Get instance data
+# 7) Get instance data
 
 echo "Getting Instance data"
 
@@ -117,7 +124,7 @@ fi
 
 echo "OK: AWS instance data adquired"
 
-# 7) Create tempssh SG
+# 8) Create tempssh SG
 
 echo "Checking temporary SSH SG"
 
@@ -169,7 +176,7 @@ fi
 
 echo "OK: Created TempSSH SG"
 
-# 8) Extravars, generate if not found, if not empty, save to extravars_file
+# 9) Extravars, generate if not found, if not empty, save to extravars_file
 
 if [[ "${extravars+x}" == "x" ]]; then
   printf '%s' "$extravars" | jq -S '.' >"$extravars_file"
@@ -177,18 +184,12 @@ else
   jq -n '{}' >"$extravars_file"
 fi
 
-# 9) Set tempssh sg
+# 10) Set tempssh sg
 
 aws ec2 modify-instance-attribute \
   --instance-id "$instance_id" \
   --groups $instance_sg_list "$sg_tempssh_id" \
   >/dev/null 2>&1
-
-# 10) Prepare ssh
-
-ssh-keyscan -H "$instance_ip" >"$path_temp/known_hosts" 2>/dev/null || true
-printf '%s' "$instance_pem" >"$pem_path"
-chmod 600 "$pem_path"
 
 # 11) Check SSH reachability
 
