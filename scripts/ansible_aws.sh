@@ -78,20 +78,7 @@ fi
 
 echo "OK: playbook unzipped and contains main.yml"
 
-# 5) Prepare ssh
-
-printf '%s' "$instance_pem" >"$pem_path"
-chmod 600 "$pem_path"
-
-if ! ssh-keygen -y -f "$pem_path" >/dev/null 2>&1; then
-  echo "ERROR: instance_pem is not a valid private key (PEM)." >&2
-  exit 1
-fi
-echo "OK: instance PEM is valid"
-
-ssh-keyscan -H "$instance_ip" >"$path_temp/known_hosts" 2>/dev/null || true
-
-# 6) Check aws access
+# 5) Check aws access
 
 echo "Checking aws credentials"
 
@@ -102,7 +89,7 @@ fi
 
 echo "OK: AWS credentials OK"
 
-# 7) Get instance data
+# 6) Get instance data
 
 echo "Getting Instance data"
 
@@ -123,6 +110,19 @@ if [[ -z "${instance_state:-}" || -z "${instance_ip:-}" || -z "${instance_sg_lis
 fi
 
 echo "OK: AWS instance data adquired"
+
+# 7) Prepare ssh
+
+printf '%s' "$instance_pem" >"$pem_path"
+chmod 600 "$pem_path"
+
+if ! ssh-keygen -y -f "$pem_path" >/dev/null 2>&1; then
+  echo "ERROR: instance_pem is not a valid private key (PEM)." >&2
+  exit 1
+fi
+echo "OK: instance PEM is valid"
+
+ssh-keyscan -H "$instance_ip" >"$path_temp/known_hosts" 2>/dev/null || true
 
 # 8) Create tempssh SG
 
