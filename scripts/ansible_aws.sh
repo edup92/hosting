@@ -3,7 +3,7 @@
 # 1) Arguments
 
 path_zip="${1:-}"
-required_bin=(curl ssh ssh-keygen ssh-keyscan grep unzip jq aws ansiblee)
+required_bin=(curl ssh ssh-keygen ssh-keyscan grep unzip jq aws ansible)
 required_env=(instance_id instance_user instance_pem)
 path_temp="$(mktemp -d)"
 path_playbook="$path_temp/main.yml"
@@ -67,7 +67,7 @@ if [[ "${extravars+x}" == "x" ]]; then
   echo "OK: extravars is valid JSON"
 fi
 
-if ! ssh-keygen -y -f <(printf '%s' "$instance_pem") >/dev/null 2>&1; then
+if ! ssh-keygen -y -f "$instance_path" >/dev/null 2>&1; then
   echo "ERROR: instance_pem is not a valid private key (PEM)." >&2
   exit 1
 fi
@@ -142,8 +142,8 @@ else
       --output text
   )"
 
-  runner_ipv4="$(curl -fsS https://checkip.amazonaws.com
-  )"
+runner_ipv4="$(curl -fsS https://checkip.amazonaws.com | tr -d '\n')"
+
   if [[ -z "${runner_ipv4:-}" ]]; then
     echo "ERROR: Could not determine runner public IPv4." >&2
     exit 1
