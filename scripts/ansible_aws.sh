@@ -16,15 +16,41 @@ instance_waiter_deadline=$((SECONDS + 120))
 # 2) Functions
 
 cleanup() {
-  echo "Restoring original SG"
-  aws ec2 modify-instance-attribute \
-    --instance-id "$instance_id" \
-    --groups $instance_sg_list \
-    >/dev/null 2>&1 || true
-  echo "Restored original SG"
-  rm -rf "$path_temp" || true
-  echo "Removed temp path $path_temp"
+  echo "Cleanup: restoring original SG, deleting temp SG (if created), removing temp files"
+
+  # 1) Restore original SG
+  if [[ -n "${instance_id:-}" && -n "${instance_sg_list:-}" ]]; then
+    echo "Restoring original SGs on instance $instance_id: $instance_sg_list"
+    aws ec2 modify-instance-attribute \
+      --instance-id "$instance_id" \
+      --groups $instance_sg_list \
+      >/dev/null 2>&1 || true
+    echo "Original SGs restored"
+  else
+    echo "INFO: instance_id or instance_sg_list not set; skipping SG restore"
+  fi
+
+  # 2) Delete temp SG if created
+  if [[ -n "${sg_tempssh_id:-}" ]]; then
+    echo "Deleting temp SG $sg_tempssh_id"
+    aws ec2 delete-security-group \
+      --group-id "$sg_tempssh_id" \
+      >/dev/null 2>&1 || true
+    echo "Temp SG deleted (or already gone)"
+  else
+    echo "INFO: sg_tempssh_id not set; skipping temp SG deletion"
+  fi
+
+  # 3) Remove temporary files
+  if [[ -n "${path_temp:-}" && -d "$path_temp" ]]; then
+    rm -rf "$path_temp" >/dev/null 2>&1 || true
+    echo "Removed temp path $path_temp"
+  else
+    echo "INFO: path_temp not set or not a dir; skipping temp path removal"
+  fi
 }
+
+
 trap cleanup EXIT
 
 # 3) Requirements (env, file, OS, binaries)
@@ -127,50 +153,35 @@ echo "OK: instance PEM is valid"
 echo "Checking temporary SSH SG"
 
 sg_tempssh_id="$(
-  aws ec2 describe-security-groups \
-    --filters "Name=vpc-id,Values=$vpc_id" "Name=group-name,Values=$sg_tempssh_name" \
-    --query 'SecurityGroups[0].GroupId' \
+  aws ec2 create-security-group \
+    --vpc-id "$vpc_id" \
+    --group-name "$sg_tempssh_name" \
+    --description "Temporary SSH access" \
+    --query 'GroupId' \
     --output text
 )"
 
-if [[ -n "${sg_tempssh_id:-}" && "$sg_tempssh_id" != "None" ]]; then
-  echo "OK: SG '$sg_tempssh_name' already exists ($sg_tempssh_id). It will not be recreated."
-else
-  echo "INFO: SG '$sg_tempssh_name' not found in VPC '$vpc_id'. Creating it..."
-
-  sg_tempssh_id="$(
-    aws ec2 create-security-group \
-      --vpc-id "$vpc_id" \
-      --group-name "$sg_tempssh_name" \
-      --description "Temporary SSH access" \
-      --query 'GroupId' \
-      --output text
-  )"
-
 runner_ipv4="$(curl -fsS https://checkip.amazonaws.com | tr -d '\n')"
 
-  if [[ -z "${runner_ipv4:-}" ]]; then
-    echo "ERROR: Could not determine runner public IPv4." >&2
-    exit 1
-  fi
-
-  aws ec2 authorize-security-group-ingress \
-    --group-id "$sg_tempssh_id" \
-    --protocol tcp \
-    --port 22 \
-    --cidr "${runner_ipv4}/32" \
-    >/dev/null 2>&1
-
-  aws ec2 authorize-security-group-egress \
-    --group-id "$sg_tempssh_id" \
-    --ip-permissions '[
-      {"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0","Description":"All outbound IPv4"}]},
-      {"IpProtocol":"-1","Ipv6Ranges":[{"CidrIpv6":"::/0","Description":"All outbound IPv6"}]}
-    ]' \
-    >/dev/null 2>&1 || true
-
-  echo "OK: SG tempSSH created"
+if [[ -z "${runner_ipv4:-}" ]]; then
+  echo "ERROR: Could not determine runner public IPv4." >&2
+  exit 1
 fi
+
+aws ec2 authorize-security-group-ingress \
+  --group-id "$sg_tempssh_id" \
+  --protocol tcp \
+  --port 22 \
+  --cidr "${runner_ipv4}/32" \
+  >/dev/null 2>&1
+
+aws ec2 authorize-security-group-egress \
+  --group-id "$sg_tempssh_id" \
+  --ip-permissions '[
+    {"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0","Description":"All outbound IPv4"}]},
+    {"IpProtocol":"-1","Ipv6Ranges":[{"CidrIpv6":"::/0","Description":"All outbound IPv6"}]}
+  ]' \
+  >/dev/null 2>&1 || true
 
 echo "OK: Created TempSSH SG"
 
