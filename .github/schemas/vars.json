@@ -1,50 +1,21 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": [
-    "project_name",
-    "instance_type",
-    "instance_disk_size",
-    "sites"
-  ],
+  "required": [ "project_name", "instance_type", "instance_disk_size", "sites"],
   "properties": {
-    "project_name": {
-      "type": "string",
-      "minLength": 1
-    },
-    "instance_type": {
-      "type": "string",
-      "minLength": 1
-    },
-    "instance_disk_size": {
-      "type": "string",
-      "minLength": 1
-    },
+    "project_name": { "type": "string", "minLength": 1},
+    "instance_type": { "type": "string", "minLength": 1},
+    "instance_disk_size": { "type": "string", "minLength": 1},
     "sites": {
       "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "required": ["domain", "monitor_keyword", "user_password", "db_password"],
-        "properties": {
-          "domain": {
-            "type": "string",
-            "minLength": 1
-          },
-          "monitor_keyword": {
-            "type": "string",
-            "minLength": 1
-          },
-          "user_password": {
-            "type": "string",
-            "minLength": 1
-          },
-          "db_password": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "additionalProperties": false
-      }
+      "required": ["domain", "monitor_keyword", "user_password", "db_password"],
+      "properties": {
+        "domain": { "type": "string", "minLength": 1 },
+        "monitor_keyword": { "type": "string", "minLength": 1 },
+        "user_password": { "type": "string", "minLength": 1 },
+        "db_password": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
