@@ -118,8 +118,8 @@ jobs:
   prepare-src:
     runs-on: ubuntu-latest
     env:
-      LAMBDA_DIR: "./src/lambda"
-      ANSIBLE_DIR: "./src/ansible"     
+      LAMBDA_DIR: "src/lambda"
+      ANSIBLE_DIR: "src/ansible"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -135,50 +135,49 @@ jobs:
         id: cache-artifacts-python
         uses: actions/cache@v4
         with:
-          path: ${{ env.LAMBDA_DIR }}/${{ env.PYTHON_DIR }}/**/packages
-          key: ${{ runner.os }}-lambda-python-${{ hashFiles('build/lambda/**') }}
+          path: ${{ env.LAMBDA_DIR }}/**/packages
+          key: ${{ runner.os }}-lambda-python-${{ hashFiles('src/lambda/**/requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-lambda-python-artifacts-
+            ${{ runner.os }}-lambda-python-
       - name: Cache nodejs lambda build
         id: cache-artifacts-nodejs
         uses: actions/cache@v4
         with:
-          path: ${{ env.LAMBDA_DIR }}/${{ env.NODEJS_DIR }}/**/node_modules
-          key: ${{ runner.os }}-lambda-node-${{ hashFiles('build/lambda/**') }}
+          path: ${{ env.LAMBDA_DIR }}/**/node_modules
+          key: ${{ runner.os }}-lambda-node-${{ hashFiles('src/lambda/**/package-lock.json', 'src/lambda/**/package.json') }}
           restore-keys: |
-            ${{ runner.os }}-lambda-node-artifacts-
+            ${{ runner.os }}-lambda-node-
       - name: Build lambda python
         if: steps.cache-artifacts-python.outputs.cache-hit != 'true'
         run: |
-          for d in "$SRC_DIR/$LAMBDA_DIR/$PYTHON_DIR"/*; do
-            if [[ -f "$d/requirements.txt" ]]; then
-              echo "Building python lambda $(basename "$d")"
-              mkdir -p "$d/packages"
-              python -m pip install -r "$d/requirements.txt" -t "$d/packages"
-              echo "Built python lambda $(basename "$d")"
+          for d in "${LAMBDA_DIR%/}/"*/; do
+            if [[ -f "${d}requirements.txt" ]]; then
+              echo "Building python lambda $(basename "${d%/}")"
+              mkdir -p "${d}packages"
+              python -m pip install -r "${d}requirements.txt" -t "${d}packages"
+              echo "Built python lambda $(basename "${d%/}")"
             else
-              echo "Skipped python lambda $(basename "$d") (no requirements.txt)"
+              echo "Skipped python lambda $(basename "${d%/}") (no requirements.txt)"
             fi
           done
       - name: Build lambda nodejs
         if: steps.cache-artifacts-nodejs.outputs.cache-hit != 'true'
         run: |
-          for d in "$SRC_DIR/$LAMBDA_DIR/$NODEJS_DIR"/*; do
-            if [[ -f "$d/package.json" ]]; then
-              echo "Building node lambda $(basename "$d")"
+          for d in "${LAMBDA_DIR%/}/"*/; do
+            if [[ -f "${d}package.json" ]]; then
+              echo "Building node lambda $(basename "${d%/}")"
               (cd "$d" && npm ci --omit=dev)
-              echo "Built node lambda $(basename "$d")"
+              echo "Built node lambda $(basename "${d%/}")"
             else
-              echo "Skipped node lambda $(basename "$d") (no package.json)"
+              echo "Skipped node lambda $(basename "${d%/}") (no package.json)"
             fi
           done
       - name: Pack ansible
-        if: steps.cache-artifacts-nodejs.outputs.cache-hit != 'true'
         run: |
+          mkdir -p "${GITHUB_WORKSPACE}/build/ansible"
           for d in "${ANSIBLE_DIR%/}/"*/; do
             name="$(basename "${d%/}")"
             echo "Packing ansible folder: ${name}"
-            # Crea un zip por carpeta (contenido de la carpeta, no la carpeta contenedora)
             (cd "$d" && zip -r -q "${GITHUB_WORKSPACE}/build/ansible/${name}.zip" .)
             echo "Packed: build/ansible/${name}.zip"
           done
