@@ -380,36 +380,3 @@ resource "null_resource" "null_ansible_stack" {
 
 
 # Uptimerobot
-
-resource "uptimerobot_monitor" "uptimerobot_main" {
-  for_each          = var.sites
-  name              = split(".", each.value.domain)[0]
-  type              = "KEYWORD"
-  url               = "https://${each.value.domain}"
-  interval          = 900
-  keyword_type      = "ALERT_NOT_EXISTS"
-  keyword_case_type = "CaseSensitive"
-  keyword_value     = trimspace(each.value.monitor_keyword)
-  assigned_alert_contacts = [
-    {
-      alert_contact_id = var.uptimerobot_contactid
-      threshold        = 10,
-      recurrence       = 15
-    }
-  ]
-}
-
-resource "null_resource" "null_uptimerobot" {
-  triggers = {
-    playbook_file  = filesha256("./src/ansible/uptimerobot.zip")
-  }
-  provisioner "local-exec" {
-    environment = {
-      uptimerobot_token = var.uptimerobot_token
-      uptimerobot_contactid = var.uptimerobot_contactid
-      sites = var.sites
-      playbook_file = "./src/ansible/uptimerobot.zip"
-    }
-    command = local.script_ansible
-  }
-}
