@@ -250,11 +250,11 @@ jobs:
           key: ${{ runner.os }}-tfinit-providers-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
             ${{ runner.os }}-tfproviders-
+      - name: Terraform init
+        run: terraform init -input=false -lockfile=readonly
       - name: Fail if lockfile changed
         run: |
           git diff --exit-code .terraform.lock.hcl
-      - name: Terraform init
-        run: terraform init -input=false -lockfile=readonly
       - name: Terraform plan
         run: terraform plan -input=false -no-color -out=tf_plan.out -var-file="tf_secrets.json" -var-file="tf_vars.json"
       - name: Generate visual plan
@@ -348,9 +348,6 @@ jobs:
           key: ${{ runner.os }}-tfinit-providers-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
             ${{ runner.os }}-tfinit-providers-
-      - name: Fail if lockfile changed
-        run: |
-          git diff --exit-code .terraform.lock.hcl
       - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform apply
