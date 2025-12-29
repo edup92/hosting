@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       REQUIRED_FILES: bootstrap.sh data.tf locals.tf main.tf providers.tf secrets.tf variables.tf README.md .terraform.lock.hcl
-      REQUIRED_FOLDERS: packages scripts modules
+      REQUIRED_FOLDERS: src scripts
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -38,7 +38,6 @@ jobs:
       SECRETS_FILE: "secrets.json"
       MODULES_FILE: "modules.json"
       SCHEMA_DIR: "./.github/schemas"
-      ARN_ADMINISTRATOR: arn:aws:iam::aws:policy/AdministratorAccess
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -77,6 +76,8 @@ jobs:
 
   check-aws-credentials:
     runs-on: ubuntu-latest
+    needs:
+      - check-schemas
     env:
       SA_JSON: ${{ secrets.SA_JSON }}
       ARN_ADMINISTRATOR: arn:aws:iam::aws:policy/AdministratorAccess
@@ -119,6 +120,8 @@ jobs:
 
   generate-tf-vars:
     runs-on: ubuntu-latest
+    needs:
+    - check-schemas
     env:
       VARS_JSON: ${{ vars.VARS_JSON }}
     steps:
@@ -135,6 +138,8 @@ jobs:
 
   generate-tf-secrets:
     runs-on: ubuntu-latest
+    needs:
+      - check-schemas
     env:
       SECRETS_JSON: ${{ secrets.SECRETS_JSON }}
     steps:
@@ -148,118 +153,6 @@ jobs:
         with:
           name: tf_secrets.json
           path: tf_secrets.json
-
-  generate-artifacts:
-    runs-on: ubuntu-latest
-    env:
-      PACKAGES_LAMBDA_DIR: "packages/lambda"
-      PACKAGES_ANSIBLE_DIR: "packages/ansible"
-      ARTIFACTS_LAMBDA_DIR: "artifacts/lambda"
-      ARTIFACTS_ANSIBLE_DIR: "artifacts/ansible"
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Create artifacts folders
-        run: |
-          mkdir -p $ARTIFACTS_LAMBDA_DIR
-          mkdir -p $ARTIFACTS_ANSIBLE_DIR
-      - name: Build lambda python
-        run: |
-          for d in "${PACKAGES_LAMBDA_DIR%/}/"*/; do
-            if [[ -f "${d}requirements.txt" ]]; then
-              echo "Building python lambda $(basename "${d%/}")"
-              mkdir -p "${d}packages"
-              python -m pip install -r "${d}requirements.txt" -t "${d}packages"
-              echo "Built python lambda $(basename "${d%/}")"
-            else
-              echo "Skipped python lambda $(basename "${d%/}") (no requirements.txt)"
-            fi
-          done
-      - name: Build lambda nodejs
-        run: |
-          for d in "${PACKAGES_LAMBDA_DIR%/}/"*/; do
-            if [[ -f "${d}package.json" ]]; then
-              echo "Building node lambda $(basename "${d%/}")"
-              (cd "$d" && npm ci --omit=dev)
-              echo "Built node lambda $(basename "${d%/}")"
-            else
-              echo "Skipped node lambda $(basename "${d%/}") (no package.json)"
-            fi
-          done
-      - name: Pack lambda python
-        run: |
-          for d in "${PACKAGES_LAMBDA_DIR%/}/"*/; do
-            if [[ -f "${d}requirements.txt" ]] || [[ -d "${d}packages" ]]; then
-              name="$(basename "${d%/}")"
-              zip_path="${PACKAGES_LAMBDA_DIR%/}/${name}.zip"
-              echo "Packing python lambda: ${d} -> ${zip_path}"
-              (cd "$d" && zip -r -q "$GITHUB_WORKSPACE/$zip_path" . \
-                -x ".venv/*" ".venv/**" "__pycache__/*" "__pycache__/**" \
-                  ".pytest_cache/*" ".pytest_cache/**" ".mypy_cache/*" ".mypy_cache/**" \
-                  ".DS_Store" "*.pyc")
-              echo "Packed: ${zip_path}"
-            fi
-          done
-      - name: Pack lambda nodejs
-        run: |
-          for d in "${PACKAGES_LAMBDA_DIR%/}/"*/; do
-            if [[ -f "${d}package.json" ]] || [[ -d "${d}node_modules" ]]; then
-              name="$(basename "${d%/}")"
-              zip_path="${PACKAGES_LAMBDA_DIR%/}/${name}.zip"
-              echo "Packing nodejs lambda: ${d} -> ${zip_path}"
-              (cd "$d" && zip -r -q "$GITHUB_WORKSPACE/$zip_path" . \
-                -x ".DS_Store")
-              echo "Packed: ${zip_path}"
-            fi
-          done
-      - name: Pack ansible
-        run: |
-          for d in "${PACKAGES_ANSIBLE_DIR%/}/"*/; do
-            name="$(basename "${d%/}")"
-            zip_path="${PACKAGES_ANSIBLE_DIR%/}/${name}.zip"
-            echo "Packing Ansible Playbook of ${d} -> ${zip_path}"
-            (cd "$d" && zip -r -q "$GITHUB_WORKSPACE/$zip_path" .)
-            echo "Packed: ${zip_path}"
-          done
-      - name: Upload src
-        uses: actions/upload-artifact@v4
-        with:
-          name: src
-          path: src
-
-  generate-modules:
-    runs-on: ubuntu-latest
-    env:
-      MODULES_JSON: ${{ vars.MODULES_JSON }}
-      MODULES_DIR: ./modules
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-      - name: Download all module repos
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "$MODULES_JSON" | jq -r '.[] | "\(.owner) \(.repo)"' | while read -r owner repo; do
-            dest="$MODULES_DIR/$repo"
-            mkdir -p "$(dirname "$dest")"
-            echo "Cloning ${owner}/${repo} -> ${dest}"
-            git clone --depth 1 "https://github.com/${owner}/${repo}.git" "$dest"
-            rm -rf "$dest/.git"
-          done
-      - name: Upload modules artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: modules
-          path: ${{ env.MODULES_DIR }}
-          if-no-files-found: error
 
   generate-tf-backend:
     runs-on: ubuntu-latest
@@ -317,12 +210,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs:
+      - check-repo-structure
       - check-aws-credentials
       - generate-tf-vars
       - generate-tf-secrets
       - generate-tf-backend
-      - generate-modules
-      - generate-artifacts
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       MODULES_DIR: ./modules
@@ -334,10 +226,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
-      - name: Remove src content
-        run: rm -rf "${PACKAGES_DIR}/*"
-      - name: Create src dir
-        run: mkdir -p "${PACKAGES_DIR}"
       - name: Terraform version
         run: terraform version
       - name: Configure AWS Credentials
@@ -361,21 +249,6 @@ jobs:
         with:
           name: tf_secrets.json
           path: ""
-      - name: Download modules
-        uses: actions/download-artifact@v4
-        with:
-          name: modules
-          path: ""
-      - name: Download src
-        uses: actions/download-artifact@v4
-        with:
-          name: src
-          path: ""
-      - name: test1
-        run: ls
-      - name: test2
-        run: |
-          cd  src ; ls ; cd ansible/stack ; ls
       - name: Cache Terraform providers
         id: tfinit-providers
         uses: actions/cache@v4
@@ -424,7 +297,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - approbal
-      - generate-artifacts
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       PACKAGES_DIR: "./src"
@@ -471,16 +343,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tf_plan.out
-          path: ""
-      - name: Download src
-        uses: actions/download-artifact@v4
-        with:
-          name: src
-          path: ""
-      - name: Download modules
-        uses: actions/download-artifact@v4
-        with:
-          name: modules
           path: ""
       - name: Cache Terraform providers (plugin cache)
         id: tfinit-providers

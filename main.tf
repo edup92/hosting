@@ -353,6 +353,12 @@ resource "aws_iam_role_policy_attachment" "policyattach_bucket_backup" {
 
 # Playbook
 
+data "archive_file" "zip_src_ansible_stack" {
+  type        = "zip"
+  source_dir  = "${path.module}/src/ansible/stack"
+  output_path = "${path.module}/.tmp/stack.zip"
+}
+
 resource "null_resource" "null_ansible_stack" {
   depends_on = [
     aws_instance.instance_main,
@@ -360,7 +366,7 @@ resource "null_resource" "null_ansible_stack" {
   ]
   triggers = {
     instance_id   = aws_instance.instance_main.id
-    playbook_file  = filesha256("./src/ansible/stack.zip")
+    playbook_file  = filesha256(data.archive_file.zip_src_ansible_stack.output_path)
   }
   provisioner "local-exec" {
     environment = {
@@ -371,7 +377,7 @@ resource "null_resource" "null_ansible_stack" {
         sites = var.sites
       })
     }
-    command = "${local.script_ansible} ./src/ansible/stack.zip"
+    command = "${local.script_ansible} data.archive_file.zip_src_ansible_stack.output_path"
   }
 }
 
