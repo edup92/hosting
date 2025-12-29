@@ -7,12 +7,78 @@ permissions:
   issues: write
 
 jobs:
-  check-aws-credentials:
+
+  check-repo-structure:
+    runs-on: ubuntu-latest
+    env:
+      REQUIRED_FILES: bootstrap.sh data.tf locals.tf main.tf providers.tf secrets.tf variables.tf README.md
+      REQUIRED_FOLDERS: packages scripts modules
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+      - name: Files check
+        shell: bash
+        run: |
+          for f in $REQUIRED_FILES; do
+            test -f "$f" || { echo "::error title=Missing file::$f"; exit 1; }
+          done
+      - name: Folders check
+        shell: bash
+        run: |
+          for d in $REQUIRED_FOLDERS; do
+            test -d "$d" || { echo "::error title=Missing directory::$d does not exist"; exit 1; }
+          done
+
+  check-schemas:
     runs-on: ubuntu-latest
     env:
       SA_JSON: ${{ secrets.SA_JSON }}
       SA_FILE: "sa.json"
+      VARS_FILE: "vars.json"
+      SECRETS_FILE: "secrets.json"
+      MODULES_FILE: "modules.json"
       SCHEMA_DIR: "./.github/schemas"
+      ARN_ADMINISTRATOR: arn:aws:iam::aws:policy/AdministratorAccess
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+      - name: Save SA_JSON as file
+        run: printf '%s' "$SA_JSON" > "$SA_FILE"
+      - name: Save VARS_JSON as file
+        run: printf '%s' "$VARS_JSON" > "$VARS_FILE"
+      - name: Save SECRETS_JSON as file
+        run: printf '%s' "$SECRETS_JSON" > "$SECRETS_FILE"
+      - name: Save MODULES_JSON as file
+        run: printf '%s' "$MODULES_JSON" > "$MODULES_FILE"
+      - name: Validate SA_JSON
+        uses: GrantBirki/json-yaml-validate@v4.0.0
+        with:
+          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SA_FILE }}"
+          files: ${{ env.SA_FILE }}
+          comment: "true"
+      - name: Validate VARS_JSON
+        uses: GrantBirki/json-yaml-validate@v4.0.0
+        with:
+          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.VARS_FILE }}"
+          files: ${{ env.VARS_FILE }}
+          comment: "true"
+      - name: Validate SECRETS_JSON
+        uses: GrantBirki/json-yaml-validate@v4.0.0
+        with:
+          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SECRETS_FILE }}"
+          files: ${{ env.SECRETS_FILE }}
+          comment: "true"
+      - name: Validate modules.json
+        uses: GrantBirki/json-yaml-validate@v4.0.0
+        with:
+          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.MODULES_FILE }}"
+          files: ${{ env.MODULES_FILE }}
+          comment: "true"
+
+  check-aws-credentials:
+    runs-on: ubuntu-latest
+    env:
+      SA_JSON: ${{ secrets.SA_JSON }}
       ARN_ADMINISTRATOR: arn:aws:iam::aws:policy/AdministratorAccess
     steps:
       - name: Checkout repo
@@ -23,14 +89,6 @@ jobs:
           aws-access-key-id: ${{ fromJson(secrets.SA_JSON).aws_access_key_id }}
           aws-secret-access-key: ${{ fromJson(secrets.SA_JSON).aws_secret_access_key }}
           aws-region: ${{ fromJson(secrets.SA_JSON).aws_region }}
-      - name: Save SA_JSON as file
-        run: printf '%s' "$SA_JSON" > "$SA_FILE"
-      - name: Validate SA_JSON
-        uses: GrantBirki/json-yaml-validate@v4.0.0
-        with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SA_FILE }}"
-          files: ${{ env.SA_FILE }}
-          comment: "true"
       - name: Check user is valid (STS)
         run: |
           if aws sts get-caller-identity >/dev/null 2>&1; then
@@ -63,19 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VARS_JSON: ${{ vars.VARS_JSON }}
-      VARS_FILE: "vars.json"
-      SCHEMA_DIR: "./.github/schemas"
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-      - name: Save VARS_JSON as file
-        run: printf '%s' "$VARS_JSON" > "$VARS_FILE"
-      - name: Validate VARS_JSON
-        uses: GrantBirki/json-yaml-validate@v4.0.0
-        with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.VARS_FILE }}"
-          files: ${{ env.VARS_FILE }}
-          comment: "true"
       - name: Generate tf_vars.json
         run: |
           echo "Storing keys into tf_vars.json:"
@@ -91,19 +137,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SECRETS_JSON: ${{ secrets.SECRETS_JSON }}
-      SECRETS_FILE: "secrets.json"
-      SCHEMA_DIR: "./.github/schemas"
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-      - name: Save SECRETS_JSON as file
-        run: printf '%s' "$SECRETS_JSON" > "$SECRETS_FILE"
-      - name: Validate SECRETS_JSON
-        uses: GrantBirki/json-yaml-validate@v4.0.0
-        with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SECRETS_FILE }}"
-          files: ${{ env.SECRETS_FILE }}
-          comment: "true"
       - name: Generate tf_secrets.json
         run: |
           echo "Storing keys into tf_secrets.json:"
@@ -115,11 +149,14 @@ jobs:
           name: tf_secrets.json
           path: tf_secrets.json
 
-  generate-src:
+  generate-artifacts:
     runs-on: ubuntu-latest
     env:
-      LAMBDA_DIR: "src/lambda"
-      ANSIBLE_DIR: "src/ansible"
+      PACKAGES_DIR: "packages"
+      PACKAGES_LAMBDA_DIR: "packages/lambda"
+      PACKAGES_ANSIBLE_DIR: "packages/ansible"
+      ARTIFACTS_LAMBDA_DIR: "artifacts/lambda"
+      ARTIFACTS_ANSIBLE_DIR: "artifacts/ansible"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -131,13 +168,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Create folders
+      - name: Create artifacts folders
         run: |
-          mkdir -p $LAMBDA_DIR
-          mkdir -p $ANSIBLE_DIR
+          mkdir -p $ARTIFACTS_LAMBDA_DIR
+          mkdir -p $ARTIFACTS_ANSIBLE_DIR
       - name: Build lambda python
         run: |
-          for d in "${LAMBDA_DIR%/}/"*/; do
+          for d in "${PACKAGES_LAMBDA_DIR%/}/"*/; do
             if [[ -f "${d}requirements.txt" ]]; then
               echo "Building python lambda $(basename "${d%/}")"
               mkdir -p "${d}packages"
@@ -149,7 +186,7 @@ jobs:
           done
       - name: Build lambda nodejs
         run: |
-          for d in "${LAMBDA_DIR%/}/"*/; do
+          for d in "${PACKAGES_LAMBDA_DIR%/}/"*/; do
             if [[ -f "${d}package.json" ]]; then
               echo "Building node lambda $(basename "${d%/}")"
               (cd "$d" && npm ci --omit=dev)
@@ -160,10 +197,10 @@ jobs:
           done
       - name: Pack lambda python
         run: |
-          for d in "${LAMBDA_DIR%/}/"*/; do
+          for d in "${PACKAGES_LAMBDA_DIR%/}/"*/; do
             if [[ -f "${d}requirements.txt" ]] || [[ -d "${d}packages" ]]; then
               name="$(basename "${d%/}")"
-              zip_path="${LAMBDA_DIR%/}/${name}.zip"
+              zip_path="${PACKAGES_LAMBDA_DIR%/}/${name}.zip"
               echo "Packing python lambda: ${d} -> ${zip_path}"
               (cd "$d" && zip -r -q "$GITHUB_WORKSPACE/$zip_path" . \
                 -x ".venv/*" ".venv/**" "__pycache__/*" "__pycache__/**" \
@@ -174,10 +211,10 @@ jobs:
           done
       - name: Pack lambda nodejs
         run: |
-          for d in "${LAMBDA_DIR%/}/"*/; do
+          for d in "${PACKAGES_LAMBDA_DIR%/}/"*/; do
             if [[ -f "${d}package.json" ]] || [[ -d "${d}node_modules" ]]; then
               name="$(basename "${d%/}")"
-              zip_path="${LAMBDA_DIR%/}/${name}.zip"
+              zip_path="${PACKAGES_LAMBDA_DIR%/}/${name}.zip"
               echo "Packing nodejs lambda: ${d} -> ${zip_path}"
               (cd "$d" && zip -r -q "$GITHUB_WORKSPACE/$zip_path" . \
                 -x ".DS_Store")
@@ -186,9 +223,9 @@ jobs:
           done
       - name: Pack ansible
         run: |
-          for d in "${ANSIBLE_DIR%/}/"*/; do
+          for d in "${PACKAGES_ANSIBLE_DIR%/}/"*/; do
             name="$(basename "${d%/}")"
-            zip_path="${ANSIBLE_DIR%/}/${name}.zip"
+            zip_path="${PACKAGES_ANSIBLE_DIR%/}/${name}.zip"
             echo "Packing Ansible Playbook of ${d} -> ${zip_path}"
             (cd "$d" && zip -r -q "$GITHUB_WORKSPACE/$zip_path" .)
             echo "Packed: ${zip_path}"
@@ -203,25 +240,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MODULES_JSON: ${{ vars.MODULES_JSON }}
-      MODULES_FILE: modules.json
-      SCHEMA_DIR: ./.github/schemas
       MODULES_DIR: ./modules
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
-      - name: Save MODULES_JSON as file
-        run: printf '%s' "$MODULES_JSON" > "$MODULES_FILE"
-      - name: Validate modules.json
-        uses: GrantBirki/json-yaml-validate@v4.0.0
-        with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.MODULES_FILE }}"
-          files: ${{ env.MODULES_FILE }}
-          comment: "true"
       - name: Download all module repos
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$MODULES_DIR"
           echo "$MODULES_JSON" | jq -r '.[] | "\(.owner) \(.repo)"' | while read -r owner repo; do
             dest="$MODULES_DIR/$repo"
             mkdir -p "$(dirname "$dest")"
@@ -297,11 +323,11 @@ jobs:
       - generate-tf-secrets
       - generate-tf-backend
       - generate-modules
-      - generate-src
+      - generate-artifacts
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       MODULES_DIR: ./modules
-      SRC_DIR: ./src
+      PACKAGES_DIR: ./src
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -310,9 +336,9 @@ jobs:
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
       - name: Remove src content
-        run: rm -rf "${SRC_DIR}/*"
+        run: rm -rf "${PACKAGES_DIR}/*"
       - name: Create src dir
-        run: mkdir -p "${SRC_DIR}"
+        run: mkdir -p "${PACKAGES_DIR}"
       - name: Terraform version
         run: terraform version
       - name: Configure AWS Credentials
@@ -399,10 +425,10 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - approbal
-      - generate-src
+      - generate-artifacts
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
-      SRC_DIR: "./src"
+      PACKAGES_DIR: "./src"
       SCRIPTS_DIR: "./scripts"
       MODULES_DIR: "./modules"
     steps:
@@ -415,9 +441,9 @@ jobs:
       - name: Create modules dir
         run: mkdir -p "${MODULES_DIR}"
       - name: Remove src content
-        run: rm -rf "${SRC_DIR}/*"
+        run: rm -rf "${PACKAGES_DIR}/*"
       - name: Create src dir
-        run: mkdir -p "${SRC_DIR}"
+        run: mkdir -p "${PACKAGES_DIR}"
       - name: Set execute permissions for scripts
         run: |
           if [ -d $SCRIPTS_DIR ]; then
