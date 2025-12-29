@@ -286,7 +286,6 @@ jobs:
       - generate-tf_backend
       - generate-modules
       - generate-src
-    if: ${{ needs.set-aws-credentials.result == 'success' && needs.generate-vars.result == 'success' && needs.generate-secrets.result == 'success' }}
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       MODULES_DIR: ./modules
@@ -326,13 +325,10 @@ jobs:
         with:
           name: modules
           path: ${{ env.MODULES_DIR }}
-          if-no-files-found: error
       - name: Download src
         uses: actions/download-artifact@v4
         with:
           name: src
-          path: ${{ env.SRC_DIR }}
-          if-no-files-found: error
       - name: Cache Terraform providers
         id: tfinit-providers
         uses: actions/cache@v4
@@ -361,7 +357,6 @@ jobs:
   approbal:
     runs-on: ubuntu-latest
     needs: tf-plan
-    if: ${{ needs.tf-plan.result == 'success' }}
     steps:
       - name: Download tfplan_visual
         uses: actions/download-artifact@v4
@@ -383,7 +378,6 @@ jobs:
     needs:
       - approbal
       - generate-src
-    if: ${{ needs.approbal.result == 'success' }}
     env:
       TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
       SRC_DIR: "./src"
@@ -439,7 +433,6 @@ jobs:
         with:
           name: modules
           path: ${{ env.MODULES_DIR }}
-          if-no-files-found: error
       - name: Cache Terraform providers (plugin cache)
         id: tfinit-providers
         uses: actions/cache@v4
