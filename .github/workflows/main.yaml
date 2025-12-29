@@ -256,9 +256,9 @@ jobs:
             echo "Enabling default encryption (SSE-S3) for $BUCKET_NAME"
             aws s3api put-bucket-encryption --bucket "$BUCKET_NAME" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
           fi
-      - name: Create TF Backend (backend.tf)
+      - name: Create tf_backend.tf
         run: |
-          tee backend.tf > /dev/null <<EOF
+          tee tf_backend.tf > /dev/null <<EOF
           terraform {
             backend "s3" {
               bucket       = "$BUCKET_NAME"
@@ -269,12 +269,12 @@ jobs:
             }
           }
           EOF
-          echo "backend.tf created"
-      - name: Upload backend.tf
+          echo "tf_backend.tf created"
+      - name: Upload tf_backend.tf
         uses: actions/upload-artifact@v4
         with:
-          name: tf_backend
-          path: backend.tf
+          name: tf_backend.tf
+          path: tf_backend.tf
 
   tf-plan:
     runs-on: ubuntu-latest
@@ -309,20 +309,20 @@ jobs:
           aws-access-key-id: ${{ fromJson(secrets.SA_JSON).aws_access_key_id }}
           aws-secret-access-key: ${{ fromJson(secrets.SA_JSON).aws_secret_access_key }}
           aws-region: ${{ fromJson(secrets.SA_JSON).aws_region }}
-      - name: Download tf_backend
+      - name: Download tf_backend.tf
         uses: actions/download-artifact@v4
         with:
-          name: tf_backend
+          name: tf_backend.tf
           path: ""
       - name: Download tf_vars
         uses: actions/download-artifact@v4
         with:
-          name: tf_vars
+          name: tf_vars.json
           path: ""
       - name: Download tf_secrets
         uses: actions/download-artifact@v4
         with:
-          name: tf_secrets
+          name: tf_secrets.json
           path: ""
       - name: Download modules
         uses: actions/download-artifact@v4
@@ -332,7 +332,8 @@ jobs:
       - name: Download src
         uses: actions/download-artifact@v4
         with:
-          name: ""
+          name: src
+          path: ""
       - name: test1
         run: ls
       - name: test2
@@ -349,19 +350,19 @@ jobs:
       - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform plan
-        run: terraform plan -input=false -no-color -out=tf_plan -var-file="tf_secrets.json" -var-file="tf_vars.json"
+        run: terraform plan -input=false -no-color -out=tf_plan.out -var-file="tf_secrets.json" -var-file="tf_vars.json"
       - name: Generate visual plan
-        run: terraform show -no-color tf_plan > tfplan_visual
+        run: terraform show -no-color tf_plan.out > tfplan_visual
       - name: Upload tfplan_visual
         uses: actions/upload-artifact@v4
         with:
           name: tfplan_visual
           path: tfplan_visual
-      - name: Upload tf_plan
+      - name: Upload tf_plan.out
         uses: actions/upload-artifact@v4
         with:
-          name: tf_plan
-          path: tf_plan
+          name: tf_plan.out
+          path: tf_plan.out
 
   approbal:
     runs-on: ubuntu-latest
@@ -424,15 +425,15 @@ jobs:
           aws-region: ${{ fromJson(secrets.SA_JSON).aws_region }}
       - name: Install Ansible
         run: sudo apt-get update && sudo apt-get install -y ansible
-      - name: Download tf_backend
+      - name: Download tf_backend.tf
         uses: actions/download-artifact@v4
         with:
-          name: tf_backend
+          name: tf_backend.tf
           path: ""
-      - name: Download tf_plan
+      - name: Download tf_plan.out
         uses: actions/download-artifact@v4
         with:
-          name: tf_plan
+          name: tf_plan.out
           path: ""
       - name: Download src
         uses: actions/download-artifact@v4
@@ -455,4 +456,4 @@ jobs:
       - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform apply
-        run: terraform apply -auto-approve tf_plan
+        run: terraform apply -auto-approve tf_plan.out
