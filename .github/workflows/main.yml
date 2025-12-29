@@ -152,7 +152,6 @@ jobs:
   generate-artifacts:
     runs-on: ubuntu-latest
     env:
-      PACKAGES_DIR: "packages"
       PACKAGES_LAMBDA_DIR: "packages/lambda"
       PACKAGES_ANSIBLE_DIR: "packages/ansible"
       ARTIFACTS_LAMBDA_DIR: "artifacts/lambda"
