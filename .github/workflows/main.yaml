@@ -7,7 +7,7 @@ permissions:
   issues: write
 
 jobs:
-  set-aws-credentials:
+  check-aws-credentials:
     runs-on: ubuntu-latest
     env:
       SA_JSON: ${{ secrets.SA_JSON }}
@@ -227,7 +227,7 @@ jobs:
   generate-tf-backend:
     runs-on: ubuntu-latest
     needs:
-      - set-aws-credentials
+      - check-aws-credentials
       - generate-tf-vars
     env:
       BUCKET_NAME: ${{ fromJson(vars.VARS_JSON).project_name }}-bucket-tfstate
@@ -280,7 +280,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs:
-      - set-aws-credentials
+      - check-aws-credentials
       - generate-tf-vars
       - generate-tf-secrets
       - generate-tf-backend
