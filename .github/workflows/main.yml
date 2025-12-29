@@ -252,6 +252,9 @@ jobs:
             ${{ runner.os }}-tfproviders-
       - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
+      - name: Fail if lockfile changed
+        run: |
+          git diff --exit-code .terraform.lock.hcl
       - name: Terraform plan
         run: terraform plan -input=false -no-color -out=tf_plan.out -var-file="tf_secrets.json" -var-file="tf_vars.json"
       - name: Generate visual plan
@@ -347,5 +350,8 @@ jobs:
             ${{ runner.os }}-tfinit-providers-
       - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
+      - name: Fail if lockfile changed
+        run: |
+          git diff --exit-code .terraform.lock.hcl
       - name: Terraform apply
         run: terraform apply -auto-approve tf_plan.out
