@@ -11,7 +11,7 @@ jobs:
   check-repo-structure:
     runs-on: ubuntu-latest
     env:
-      REQUIRED_FILES: bootstrap.sh data.tf locals.tf main.tf providers.tf secrets.tf variables.tf README.md
+      REQUIRED_FILES: bootstrap.sh data.tf locals.tf main.tf providers.tf secrets.tf variables.tf README.md .terraform.lock.hcl
       REQUIRED_FOLDERS: packages scripts modules
     steps:
       - name: Checkout repo
