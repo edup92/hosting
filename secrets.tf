@@ -10,11 +10,6 @@ variable "uptimerobot_token" {
 }
 
 variable "uptimerobot_contactid" {
-	description = "Uptimerobot Contact ID"
-	type        = string
-}
-
-variable "uptimerobot_contactid" {
 	description = "Mapa de contactsid"
 	type = map(object({
 		email = string
