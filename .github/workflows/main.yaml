@@ -131,24 +131,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Cache python lambda build
-        id: cache-artifacts-python
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.LAMBDA_DIR }}/**/packages
-          key: ${{ runner.os }}-lambda-python-${{ hashFiles('src/lambda/**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-lambda-python-
-      - name: Cache nodejs lambda build
-        id: cache-artifacts-nodejs
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.LAMBDA_DIR }}/**/node_modules
-          key: ${{ runner.os }}-lambda-node-${{ hashFiles('src/lambda/**/package-lock.json', 'src/lambda/**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-lambda-node-
+      - name: Create folders
+        run: |
+          mkdir -p $LAMBDA_DIR
+          mkdir -p $ANSIBLE_DIR
       - name: Build lambda python
-        if: steps.cache-artifacts-python.outputs.cache-hit != 'true'
         run: |
           for d in "${LAMBDA_DIR%/}/"*/; do
             if [[ -f "${d}requirements.txt" ]]; then
@@ -161,7 +148,6 @@ jobs:
             fi
           done
       - name: Build lambda nodejs
-        if: steps.cache-artifacts-nodejs.outputs.cache-hit != 'true'
         run: |
           for d in "${LAMBDA_DIR%/}/"*/; do
             if [[ -f "${d}package.json" ]]; then
@@ -172,14 +158,40 @@ jobs:
               echo "Skipped node lambda $(basename "${d%/}") (no package.json)"
             fi
           done
+      - name: Pack lambda python
+        run: |
+          for d in "${LAMBDA_DIR%/}/"*/; do
+            if [[ -f "${d}requirements.txt" ]] || [[ -d "${d}packages" ]]; then
+              name="$(basename "${d%/}")"
+              zip_path="${LAMBDA_DIR%/}/${name}.zip"
+              echo "Packing python lambda: ${d} -> ${zip_path}"
+              (cd "$d" && zip -r -q "$GITHUB_WORKSPACE/$zip_path" . \
+                -x ".venv/*" ".venv/**" "__pycache__/*" "__pycache__/**" \
+                  ".pytest_cache/*" ".pytest_cache/**" ".mypy_cache/*" ".mypy_cache/**" \
+                  ".DS_Store" "*.pyc")
+              echo "Packed: ${zip_path}"
+            fi
+          done
+      - name: Pack lambda nodejs
+        run: |
+          for d in "${LAMBDA_DIR%/}/"*/; do
+            if [[ -f "${d}package.json" ]] || [[ -d "${d}node_modules" ]]; then
+              name="$(basename "${d%/}")"
+              zip_path="${LAMBDA_DIR%/}/${name}.zip"
+              echo "Packing nodejs lambda: ${d} -> ${zip_path}"
+              (cd "$d" && zip -r -q "$GITHUB_WORKSPACE/$zip_path" . \
+                -x ".DS_Store")
+              echo "Packed: ${zip_path}"
+            fi
+          done
       - name: Pack ansible
         run: |
-          mkdir -p "${GITHUB_WORKSPACE}/build/ansible"
           for d in "${ANSIBLE_DIR%/}/"*/; do
             name="$(basename "${d%/}")"
-            echo "Packing ansible folder: ${name}"
-            (cd "$d" && zip -r -q "${GITHUB_WORKSPACE}/build/ansible/${name}.zip" .)
-            echo "Packed: build/ansible/${name}.zip"
+            zip_path="${ANSIBLE_DIR%/}/${name}.zip"
+            echo "Packing Ansible Playbook of ${d} -> ${zip_path}"
+            (cd "$d" && zip -r -q "$GITHUB_WORKSPACE/$zip_path" .)
+            echo "Packed: ${zip_path}"
           done
       - name: Upload src
         uses: actions/upload-artifact@v4
