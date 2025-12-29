@@ -59,7 +59,7 @@ jobs:
             exit 1
           fi
 
-  generate-vars:
+  generate-tf-vars:
     runs-on: ubuntu-latest
     env:
       VARS_JSON: ${{ vars.VARS_JSON }}
@@ -87,7 +87,7 @@ jobs:
           name: tf_vars.json
           path: tf_vars.json
 
-  generate-secrets:
+  generate-tf-secrets:
     runs-on: ubuntu-latest
     env:
       SECRETS_JSON: ${{ secrets.SECRETS_JSON }}
@@ -224,11 +224,11 @@ jobs:
           path: ${{ env.MODULES_DIR }}
           if-no-files-found: error
 
-  generate-tf_backend:
+  generate-tf-backend:
     runs-on: ubuntu-latest
     needs:
       - set-aws-credentials
-      - generate-vars
+      - generate-tf-vars
     env:
       BUCKET_NAME: ${{ fromJson(vars.VARS_JSON).project_name }}-bucket-tfstate
       AWS_REGION: ${{ fromJson(secrets.SA_JSON).aws_region }}
@@ -281,9 +281,9 @@ jobs:
     timeout-minutes: 5
     needs:
       - set-aws-credentials
-      - generate-vars
-      - generate-secrets
-      - generate-tf_backend
+      - generate-tf-vars
+      - generate-tf-secrets
+      - generate-tf-backend
       - generate-modules
       - generate-src
     env:
