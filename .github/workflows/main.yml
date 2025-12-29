@@ -34,7 +34,7 @@ jobs:
     env:
       SA_JSON: ${{ secrets.SA_JSON }}
       SECRETS_JSON: ${{ secrets.SECRETS_JSON }}
-      VARS_JSON: ${{ secrets.VARS_JSON }}
+      VARS_JSON: ${{ vars.VARS_JSON }}
       SA_FILE: "sa.json"
       VARS_FILE: "vars.json"
       SECRETS_FILE: "secrets.json"
