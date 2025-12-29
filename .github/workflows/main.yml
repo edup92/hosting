@@ -33,10 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SA_JSON: ${{ secrets.SA_JSON }}
+      SECRETS_JSON: ${{ secrets.SECRETS_JSON }}
+      VARS_JSON: ${{ secrets.VARS_JSON }}
       SA_FILE: "sa.json"
       VARS_FILE: "vars.json"
       SECRETS_FILE: "secrets.json"
-      MODULES_FILE: "modules.json"
       SCHEMA_DIR: "./.github/schemas"
     steps:
       - name: Checkout repo
@@ -47,8 +48,6 @@ jobs:
         run: printf '%s' "$VARS_JSON" > "$VARS_FILE"
       - name: Save SECRETS_JSON as file
         run: printf '%s' "$SECRETS_JSON" > "$SECRETS_FILE"
-      - name: Save MODULES_JSON as file
-        run: printf '%s' "$MODULES_JSON" > "$MODULES_FILE"
       - name: Validate SA_JSON
         uses: GrantBirki/json-yaml-validate@v4.0.0
         with:
@@ -66,12 +65,6 @@ jobs:
         with:
           json_schema: "${{ env.SCHEMA_DIR }}/${{ env.SECRETS_FILE }}"
           files: ${{ env.SECRETS_FILE }}
-          comment: "true"
-      - name: Validate modules.json
-        uses: GrantBirki/json-yaml-validate@v4.0.0
-        with:
-          json_schema: "${{ env.SCHEMA_DIR }}/${{ env.MODULES_FILE }}"
-          files: ${{ env.MODULES_FILE }}
           comment: "true"
 
   check-aws-credentials:
