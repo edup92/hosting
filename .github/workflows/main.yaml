@@ -84,7 +84,7 @@ jobs:
       - name: Upload tf_vars.json
         uses: actions/upload-artifact@v4
         with:
-          name: tf_vars
+          name: tf_vars.json
           path: tf_vars.json
 
   generate-secrets:
@@ -112,7 +112,7 @@ jobs:
       - name: Upload tf_secrets.json
         uses: actions/upload-artifact@v4
         with:
-          name: tf_secrets
+          name: tf_secrets.json
           path: tf_secrets.json
 
   generate-src:
@@ -336,9 +336,8 @@ jobs:
       - name: test1
         run: ls
       - name: test2
-        run: cd  src ; ls
-      - name: test3
-        run: cd  modules ; ls
+        run: |
+          cd  src ; ls ; cd ansible/stack ; ls
       - name: Cache Terraform providers
         id: tfinit-providers
         uses: actions/cache@v4
