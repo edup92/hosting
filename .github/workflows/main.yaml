@@ -333,6 +333,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ""
+      - name: test1
+        run: ls
+      - name: test2
+        run: cd  src ; ls
+      - name: test3
+        run: cd  modules ; ls
       - name: Cache Terraform providers
         id: tfinit-providers
         uses: actions/cache@v4
@@ -344,19 +350,19 @@ jobs:
       - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform plan
-        run: terraform plan -input=false -no-color -out=tfplan -var-file="tf_secrets.json" -var-file="tf_vars.json"
+        run: terraform plan -input=false -no-color -out=tf_plan -var-file="tf_secrets.json" -var-file="tf_vars.json"
       - name: Generate visual plan
-        run: terraform show -no-color tfplan > tfplan_visual
+        run: terraform show -no-color tf_plan > tfplan_visual
       - name: Upload tfplan_visual
         uses: actions/upload-artifact@v4
         with:
           name: tfplan_visual
           path: tfplan_visual
-      - name: Upload tfplan
+      - name: Upload tf_plan
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan
-          path: tfplan
+          name: tf_plan
+          path: tf_plan
 
   approbal:
     runs-on: ubuntu-latest
@@ -424,21 +430,21 @@ jobs:
         with:
           name: tf_backend
           path: ""
-      - name: Download tfplan
+      - name: Download tf_plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan
+          name: tf_plan
           path: ""
       - name: Download src
         uses: actions/download-artifact@v4
         with:
           name: src
-          path: ${{ env.SRC_DIR }}
+          path: ""
       - name: Download modules
         uses: actions/download-artifact@v4
         with:
           name: modules
-          path: ${{ env.MODULES_DIR }}
+          path: ""
       - name: Cache Terraform providers (plugin cache)
         id: tfinit-providers
         uses: actions/cache@v4
@@ -450,4 +456,4 @@ jobs:
       - name: Terraform init
         run: terraform init -input=false -lockfile=readonly
       - name: Terraform apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve tf_plan
