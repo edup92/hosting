@@ -297,6 +297,10 @@ jobs:
         uses: hashicorp/setup-terraform@v3
       - name: Create plugin cache dir
         run: mkdir -p "${TF_PLUGIN_CACHE_DIR}"
+      - name: Remove src content
+        run: rm -rf "${SRC_DIR}/*"
+      - name: Create src dir
+        run: mkdir -p "${SRC_DIR}"
       - name: Terraform version
         run: terraform version
       - name: Configure AWS Credentials
@@ -324,11 +328,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: modules
-          path: ${{ env.MODULES_DIR }}
+          path: ""
       - name: Download src
         uses: actions/download-artifact@v4
         with:
-          name: src
+          name: ""
       - name: Cache Terraform providers
         id: tfinit-providers
         uses: actions/cache@v4
@@ -394,6 +398,8 @@ jobs:
         run: mkdir -p "${MODULES_DIR}"
       - name: Remove src content
         run: rm -rf "${SRC_DIR}/*"
+      - name: Create src dir
+        run: mkdir -p "${SRC_DIR}"
       - name: Set execute permissions for scripts
         run: |
           if [ -d $SCRIPTS_DIR ]; then
